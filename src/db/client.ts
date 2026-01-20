@@ -1,14 +1,29 @@
 
 import { createClient } from "@libsql/client";
 
-const url = import.meta.env?.VITE_TURSO_DATABASE_URL || process.env.VITE_TURSO_DATABASE_URL;
-const authToken = import.meta.env?.VITE_TURSO_AUTH_TOKEN || process.env.VITE_TURSO_AUTH_TOKEN;
+const getDbConfig = () => {
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+        return {
+            url: import.meta.env.VITE_TURSO_DATABASE_URL,
+            authToken: import.meta.env.VITE_TURSO_AUTH_TOKEN
+        };
+    }
+    if (typeof process !== 'undefined' && process.env) {
+        return {
+            url: process.env.VITE_TURSO_DATABASE_URL,
+            authToken: process.env.VITE_TURSO_AUTH_TOKEN
+        };
+    }
+    return { url: undefined, authToken: undefined };
+};
 
-if (!url) {
-    console.error("VITE_TURSO_DATABASE_URL is not defined");
-}
+const config = getDbConfig();
+
+// In browser, we must have a remote URL. We provide a dummy URL if missing to prevent crash.
+const isBrowser = typeof window !== 'undefined';
+const defaultUrl = isBrowser ? "https://placeholder-url.turso.io" : "file:local.db";
 
 export const db = createClient({
-    url: url || "file:local.db",
-    authToken: authToken,
+    url: config.url || defaultUrl,
+    authToken: config.authToken || "",
 });
