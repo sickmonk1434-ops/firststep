@@ -3,8 +3,10 @@ import { Outlet, Link } from "react-router-dom";
 import { GraduationCap, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 
 const Layout = () => {
+    const { user } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -38,9 +40,15 @@ const Layout = () => {
                                 {link.name}
                             </Link>
                         ))}
-                        <Button asChild variant="default" size="sm">
-                            <Link to="/login">Admin Login</Link>
-                        </Button>
+                        {user ? (
+                            <Button asChild variant="default" size="sm" className="bg-primary hover:bg-primary/90">
+                                <Link to="/admin">Dashboard</Link>
+                            </Button>
+                        ) : (
+                            <Button asChild variant="outline" size="sm">
+                                <Link to="/login">Portal Login</Link>
+                            </Button>
+                        )}
                     </nav>
 
                     {/* Mobile Menu Toggle */}

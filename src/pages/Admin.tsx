@@ -1,35 +1,45 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { db } from "@/db/client";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { GraduationCap, Image as ImageIcon, Users, Camera, Video, Plus, Check, X, Mail, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GraduationCap, ImageIcon, Users, Camera, Video, Plus, Check, X, Trash2, Clock, ShieldCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { Navigate } from "react-router-dom";
 
 const Admin = () => {
+    const { user, logout, loading: authLoading } = useAuth();
+    const [activeTab, setActiveTab] = useState("dashboard");
+
+    // Data states
     const [applications, setApplications] = useState<any[]>([]);
     const [banners, setBanners] = useState<any[]>([]);
     const [gallery, setGallery] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState("applications");
+    const [staff, setStaff] = useState<any[]>([]);
+    const [attendance, setAttendance] = useState<any[]>([]);
 
     // Form states
-    const [isBannerOpen, setIsBannerOpen] = useState(false);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const [isStaffOpen, setIsStaffOpen] = useState(false);
     const [galleryType, setGalleryType] = useState<'photo' | 'video'>('photo');
 
-    useEffect(() => {
-        fetchData();
-    }, [activeTab]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             if (activeTab === "applications") {
                 const res = await db.execute("SELECT * FROM applications ORDER BY created_at DESC");
                 setApplications(res.rows);
+            } else if (activeTab === "attendance") {
+                const res = await db.execute("SELECT * FROM attendance ORDER BY date DESC, clock_in DESC");
+                setAttendance(res.rows);
+            } else if (activeTab === "staff") {
+                const res = await db.execute("SELECT * FROM users ORDER BY role ASC");
+                setStaff(res.rows);
             } else if (activeTab === "banners") {
                 const res = await db.execute("SELECT * FROM banner_images ORDER BY display_order ASC");
                 setBanners(res.rows);
@@ -41,52 +51,115 @@ const Admin = () => {
             console.error(err);
             toast.error("Failed to fetch data");
         }
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (user) {
+            fetchData();
+        }
+    }, [user, fetchData]);
+
+    if (authLoading) return <div className="p-20 text-center">Checking authentication...</div>;
+    if (!user) return <Navigate to="/login" />;
+
+    // ----- Action Handlers -----
+
+    const handleUpdateApplication = async (id: number, action: string) => {
+        try {
+            if (user.role === 'principal') {
+                await db.execute({
+                    sql: "UPDATE applications SET principal_recommendation = ? WHERE id = ?",
+                    args: [action, id]
+                });
+                toast.success(`Principal ${action} recommendation submitted`);
+            } else if (user.role === 'admin') {
+                await db.execute({
+                    sql: "UPDATE applications SET admin_confirmation = ?, status = ? WHERE id = ?",
+                    args: ['confirmed', action, id]
+                });
+                toast.success(`Admin confirmed application as ${action}`);
+            }
+            fetchData();
+        } catch {
+            toast.error("Application update failed");
+        }
     };
 
-    const handleUpdateStatus = async (id: number, status: string) => {
+    const handleAttendanceAction = async (id: number, status: string) => {
+        if (user.role !== 'admin' && user.role !== 'principal') return;
         try {
             await db.execute({
-                sql: "UPDATE applications SET status = ? WHERE id = ?",
+                sql: "UPDATE attendance SET status = ? WHERE id = ?",
                 args: [status, id]
             });
-            toast.success(`Application ${status}`);
+            toast.success(`Attendance ${status}`);
             fetchData();
-        } catch (err) {
-            toast.error("Update failed");
+        } catch {
+            toast.error("Failed to update attendance");
         }
     };
 
-    const handleDeleteItem = async (table: string, id: number) => {
-        if (!confirm("Are you sure you want to delete this item?")) return;
+    const handleClockIn = async () => {
         try {
+            const now = new Date().toISOString();
             await db.execute({
-                sql: `DELETE FROM ${table} WHERE id = ?`,
-                args: [id]
+                sql: "INSERT INTO attendance (type, target_id, clock_in, status, marked_by) VALUES (?, ?, ?, ?, ?)",
+                args: ['staff', user.id, now, 'pending', user.id]
             });
-            toast.success("Item deleted");
+            toast.success("Clocked in successfully! Awaiting approval.");
             fetchData();
-        } catch (err) {
-            toast.error("Delete failed");
+        } catch {
+            toast.error("Clock-in failed");
         }
     };
 
-    const handleAddBanner = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleClockOut = async (attendanceId: number) => {
+        try {
+            const now = new Date().toISOString();
+            await db.execute({
+                sql: "UPDATE attendance SET clock_out = ? WHERE id = ?",
+                args: [now, attendanceId]
+            });
+            toast.success("Clocked out successfully!");
+            fetchData();
+        } catch {
+            toast.error("Clock-out failed");
+        }
+    };
+
+    const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         try {
             await db.execute({
-                sql: "INSERT INTO banner_images (url, alt_text, display_order) VALUES (?, ?, ?)",
+                sql: "INSERT INTO users (email, password, role, name) VALUES (?, ?, ?, ?)",
                 args: [
-                    formData.get('url') as string,
-                    formData.get('alt_text') as string,
-                    parseInt(formData.get('display_order') as string || '0')
+                    formData.get('email') as string,
+                    formData.get('password') as string,
+                    formData.get('role') as string,
+                    formData.get('name') as string
                 ]
             });
-            toast.success("Banner added");
-            setIsBannerOpen(false);
+            toast.success("System user created");
+            setIsStaffOpen(false);
             fetchData();
-        } catch (err) {
-            toast.error("Failed to add banner");
+        } catch {
+            toast.error("Failed to create user");
+        }
+    };
+
+    const handleDeleteItem = async (table: string, id: number) => {
+        if (user.role !== 'admin') {
+            toast.error("Only Admin can delete items");
+            return;
+        }
+        if (!confirm("Confirm deletion?")) return;
+        try {
+            await db.execute({ sql: `DELETE FROM ${table} WHERE id = ?`, args: [id] });
+            toast.success("Item deleted");
+            fetchData();
+        } catch {
+            toast.error("Delete failed");
         }
     };
 
@@ -96,26 +169,12 @@ const Admin = () => {
         try {
             await db.execute({
                 sql: "INSERT INTO gallery_items (type, url, title, event_name, event_date) VALUES (?, ?, ?, ?, ?)",
-                args: [
-                    galleryType,
-                    formData.get('url') as string,
-                    formData.get('title') as string,
-                    formData.get('event_name') as string,
-                    formData.get('event_date') as string
-                ]
+                args: [galleryType, formData.get('url') as string, formData.get('title') as string, formData.get('event_name') as string, formData.get('event_date') as string]
             });
-            toast.success(`${galleryType} added to gallery`);
+            toast.success("Gallery item added");
             setIsGalleryOpen(false);
             fetchData();
-        } catch (err) {
-            toast.error("Failed to add gallery item");
-        }
-    };
-
-    const handleSendEmail = (email: string, status: string, name: string) => {
-        toast.info(`Email sent to ${email} regarding ${status} status for ${name}`);
-        console.log(`SUBJECT: The First Step Pre-School Application Status - ${status}`);
-        console.log(`BODY: Dear Parent, The application for ${name} has been ${status}.`);
+        } catch { toast.error("Failed"); }
     };
 
     return (
@@ -125,87 +184,153 @@ const Admin = () => {
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <GraduationCap className="h-8 w-8 text-primary" />
-                        <span className="font-bold text-xl">FS Admin Portal</span>
+                        <span className="font-bold text-xl uppercase tracking-tighter">
+                            FS <span className="text-muted-foreground font-light">{user.role}</span> Portal
+                        </span>
                     </div>
-                    <Button variant="ghost" onClick={() => window.location.href = "/"}>Logout</Button>
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm font-medium hidden md:block">Welcome, {user.name}</span>
+                        <Button variant="outline" size="sm" onClick={logout}>Logout</Button>
+                    </div>
                 </div>
             </header>
 
             <div className="container mx-auto px-4 py-8">
-                <Tabs defaultValue="applications" className="space-y-6" onValueChange={setActiveTab}>
-                    <TabsList className="bg-white border p-1 rounded-xl w-full md:w-auto h-auto grid grid-cols-3 gap-2">
-                        <TabsTrigger value="applications" className="px-6 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">
-                            <Users className="h-4 w-4 mr-2" /> Applications
-                        </TabsTrigger>
-                        <TabsTrigger value="banners" className="px-6 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">
-                            <ImageIcon className="h-4 w-4 mr-2" /> Banners
-                        </TabsTrigger>
-                        <TabsTrigger value="gallery" className="px-6 py-2.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white">
-                            <Camera className="h-4 w-4 mr-2" /> Gallery
-                        </TabsTrigger>
+                <Tabs defaultValue="dashboard" className="space-y-6" onValueChange={setActiveTab}>
+                    <TabsList className="bg-white border p-1 rounded-xl w-full h-auto flex flex-wrap gap-2 overflow-x-auto">
+                        <TabsTrigger value="dashboard" className="flex-1">Dashboard</TabsTrigger>
+                        <TabsTrigger value="attendance" className="flex-1"><Clock className="h-4 w-4 mr-2" /> Attendance</TabsTrigger>
+                        <TabsTrigger value="applications" className="flex-1"><Users className="h-4 w-4 mr-2" /> Applications</TabsTrigger>
+                        {(user.role === 'admin' || user.role === 'principal') && (
+                            <TabsTrigger value="gallery" className="flex-1"><Camera className="h-4 w-4 mr-2" /> Gallery</TabsTrigger>
+                        )}
+                        {user.role === 'admin' && (
+                            <>
+                                <TabsTrigger value="staff" className="flex-1"><UserPlus className="h-4 w-4 mr-2" /> Users</TabsTrigger>
+                                <TabsTrigger value="banners" className="flex-1"><ImageIcon className="h-4 w-4 mr-2" /> Banners</TabsTrigger>
+                            </>
+                        )}
                     </TabsList>
+
+                    {/* Dashboard Summary View */}
+                    <TabsContent value="dashboard">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <Card className="bg-primary text-white border-none">
+                                <CardHeader className="pb-2">
+                                    <CardDescription className="text-white/80">Role</CardDescription>
+                                    <CardTitle className="text-3xl capitalize">{user.role}</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm opacity-90">Manage your specific duties here.</p>
+                                </CardContent>
+                            </Card>
+
+                            {/* Attendance Quick Action */}
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <Clock className="h-5 w-5 text-primary" /> Self Attendance
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex gap-2">
+                                    <Button onClick={handleClockIn} variant="default" className="w-full">Clock In</Button>
+                                    <Button variant="outline" className="w-full">Remarks</Button>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+
+                    {/* Attendance Tab */}
+                    <TabsContent value="attendance">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Attendance Log</CardTitle>
+                                <CardDescription>Records of clock-ins and outs.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    {attendance.map((att) => (
+                                        <div key={att.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-10 w-10 bg-muted rounded-full flex items-center justify-center font-bold text-xs uppercase">
+                                                    {att.type[0]}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold">{att.date}</p>
+                                                    <p className="text-xs text-muted-foreground">In: {new Date(att.clock_in).toLocaleTimeString()} {att.clock_out ? `| Out: ${new Date(att.clock_out).toLocaleTimeString()}` : ''}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${att.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                    {att.status}
+                                                </span>
+                                                {(user.role === 'admin' || user.role === 'principal') && att.status === 'pending' && (
+                                                    <div className="flex gap-1">
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => handleAttendanceAction(att.id, 'approved')}><Check className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => handleAttendanceAction(att.id, 'rejected')}><X className="h-4 w-4" /></Button>
+                                                    </div>
+                                                )}
+                                                {!att.clock_out && att.target_id === user.id && (
+                                                    <Button size="sm" onClick={() => handleClockOut(att.id)}>Clock Out</Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
                     {/* Applications Tab */}
                     <TabsContent value="applications">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Student Applications</CardTitle>
-                                <CardDescription>Review and manage admission requests.</CardDescription>
+                                <CardTitle>Admission Pipeline</CardTitle>
+                                <CardDescription>Two-step approval: Principal (Review) → Admin (Confirm)</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-muted/50 border-y">
                                             <tr>
-                                                <th className="px-4 py-3 font-semibold">Student Name</th>
-                                                <th className="px-4 py-3 font-semibold">Parent</th>
-                                                <th className="px-4 py-3 font-semibold">Program</th>
-                                                <th className="px-4 py-3 font-semibold">Status</th>
+                                                <th className="px-4 py-3 font-semibold">Student</th>
+                                                <th className="px-4 py-3 font-semibold">Principal Rec</th>
+                                                <th className="px-4 py-3 font-semibold">Admin Conf</th>
                                                 <th className="px-4 py-3 font-semibold text-right">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y">
+                                        <tbody className="divide-y bg-white">
                                             {applications.map((app) => (
-                                                <tr key={app.id} className="hover:bg-muted/30 transition-colors">
-                                                    <td className="px-4 py-4 font-bold">{app.student_name}</td>
+                                                <tr key={app.id}>
                                                     <td className="px-4 py-4">
-                                                        <div className="font-medium">{app.parent_name}</div>
-                                                        <div className="text-xs text-muted-foreground">{app.email}</div>
+                                                        <div className="font-bold">{app.student_name}</div>
+                                                        <div className="text-xs text-muted-foreground">{app.program_interest}</div>
                                                     </td>
-                                                    <td className="px-4 py-4">{app.program_interest}</td>
                                                     <td className="px-4 py-4">
-                                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${app.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                                                app.status === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
-                                                                    'bg-red-100 text-red-800 border-red-200'
-                                                            }`}>
-                                                            {app.status}
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${app.principal_recommendation === 'approved' ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                                                            {app.principal_recommendation.toUpperCase()}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${app.admin_confirmation === 'confirmed' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                                                            {app.admin_confirmation.toUpperCase()}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-4 text-right space-x-2">
-                                                        {app.status === 'pending' && (
-                                                            <>
-                                                                <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50" onClick={() => handleUpdateStatus(app.id, 'approved')}>
-                                                                    <Check className="h-4 w-4" />
-                                                                </Button>
-                                                                <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleUpdateStatus(app.id, 'rejected')}>
-                                                                    <X className="h-4 w-4" />
-                                                                </Button>
-                                                            </>
+                                                        {user.role === 'principal' && app.principal_recommendation === 'pending' && (
+                                                            <div className="flex gap-2 justify-end">
+                                                                <Button size="sm" onClick={() => handleUpdateApplication(app.id, 'approved')}>Recommend</Button>
+                                                                <Button size="sm" variant="ghost" onClick={() => handleUpdateApplication(app.id, 'rejected')}>Reject</Button>
+                                                            </div>
                                                         )}
-                                                        <Button size="sm" variant="secondary" onClick={() => handleSendEmail(app.email, app.status, app.student_name)}>
-                                                            <Mail className="h-4 w-4 mr-2" /> Email
-                                                        </Button>
-                                                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteItem('applications', app.id)}>
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        {user.role === 'admin' && app.principal_recommendation === 'approved' && app.admin_confirmation === 'pending' && (
+                                                            <Button size="sm" className="bg-orange-600 hover:bg-orange-700" onClick={() => handleUpdateApplication(app.id, 'approved')}>
+                                                                <ShieldCheck className="h-4 w-4 mr-2" /> Confirm Admission
+                                                            </Button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {applications.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={5} className="text-center py-10 text-muted-foreground">No applications found.</td>
-                                                </tr>
-                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -213,154 +338,116 @@ const Admin = () => {
                         </Card>
                     </TabsContent>
 
-                    {/* Banners Tab */}
-                    <TabsContent value="banners">
+                    {/* Staff/User Management (Admin Only) */}
+                    <TabsContent value="staff">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle>Banner Images</CardTitle>
-                                    <CardDescription>Manage images for the home page slider.</CardDescription>
-                                </div>
-                                <Dialog open={isBannerOpen} onOpenChange={setIsBannerOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button size="sm"><Plus className="h-4 w-4 mr-2" /> Add Image</Button>
-                                    </DialogTrigger>
+                                <div><CardTitle>Core System Users</CardTitle></div>
+                                <Dialog open={isStaffOpen} onOpenChange={setIsStaffOpen}>
+                                    <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-2" /> New Account</Button></DialogTrigger>
                                     <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Add Banner Image</DialogTitle>
-                                        </DialogHeader>
-                                        <form onSubmit={handleAddBanner} className="space-y-4 pt-4">
+                                        <DialogHeader><DialogTitle>Create Staff Login</DialogTitle></DialogHeader>
+                                        <form onSubmit={handleAddUser} className="space-y-4 pt-4">
+                                            <div className="space-y-2"><Label>Full Name</Label><Input name="name" required /></div>
+                                            <div className="space-y-2"><Label>Email / Login</Label><Input name="email" type="email" required /></div>
+                                            <div className="space-y-2"><Label>Temporary Password</Label><Input name="password" required /></div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="url">Image URL</Label>
-                                                <Input id="url" name="url" placeholder="https://unsplash..." required />
+                                                <Label>System Role</Label>
+                                                <Select name="role" defaultValue="teacher">
+                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="principal">Principal</SelectItem>
+                                                        <SelectItem value="teacher">Teacher</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="alt_text">Display Title / Alt Text</Label>
-                                                <Input id="alt_text" name="alt_text" placeholder="Kids playing..." />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="display_order">Order Position</Label>
-                                                <Input id="display_order" name="display_order" type="number" defaultValue="0" />
-                                            </div>
-                                            <DialogFooter>
-                                                <Button type="submit" className="w-full">Create Banner</Button>
-                                            </DialogFooter>
+                                            <DialogFooter><Button type="submit" className="w-full">Create Account</Button></DialogFooter>
                                         </form>
                                     </DialogContent>
                                 </Dialog>
                             </CardHeader>
                             <CardContent>
-                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {banners.map((banner) => (
-                                        <Card key={banner.id} className="overflow-hidden group">
-                                            <div className="h-40 relative">
-                                                <img src={banner.url} alt={banner.alt_text} className="w-full h-full object-cover" />
-                                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteItem('banner_images', banner.id)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                            <CardContent className="p-4 flex justify-between items-center">
-                                                <div>
-                                                    <p className="text-sm font-medium truncate">{banner.alt_text || 'No description'}</p>
-                                                    <p className="text-xs text-muted-foreground mt-1">Order Index: {banner.display_order}</p>
-                                                </div>
-                                            </CardContent>
+                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {staff.map((s) => (
+                                        <Card key={s.id} className="relative group overflow-hidden">
+                                            <CardHeader className="pb-2">
+                                                <CardTitle className="text-md flex justify-between">
+                                                    {s.name}
+                                                    <span className="text-[10px] bg-primary/10 text-primary px-2 rounded-full uppercase">{s.role}</span>
+                                                </CardTitle>
+                                                <CardDescription>{s.email}</CardDescription>
+                                            </CardHeader>
+                                            {user.id !== s.id && (
+                                                <Button size="icon" variant="ghost" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive h-8 w-8" onClick={() => handleDeleteItem('users', s.id)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                         </Card>
                                     ))}
-                                    {banners.length === 0 && (
-                                        <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl border-muted text-muted-foreground">
-                                            <ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                                            <p>No banners uploaded. The home page will use defaults.</p>
-                                        </div>
-                                    )}
                                 </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
 
-                    {/* Gallery Tab */}
+                    <TabsContent value="banners">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Banners</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid gap-4">
+                                    {banners.map(b => (
+                                        <div key={b.id} className="flex items-center gap-4 border p-2 rounded">
+                                            <img src={b.url} className="w-20 h-10 object-cover" />
+                                            <div className="flex-1">{b.alt_text}</div>
+                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteItem('banner_images', b.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
                     <TabsContent value="gallery">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle>Gallery Items</CardTitle>
-                                    <CardDescription>Event photos and YouTube videos.</CardDescription>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Dialog open={isGalleryOpen} onOpenChange={setIsGalleryOpen}>
-                                        <DialogTrigger asChild>
-                                            <div className="flex gap-2">
-                                                <Button size="sm" variant="outline" onClick={() => setGalleryType('photo')}><Plus className="h-4 w-4 mr-2" /> Photo</Button>
-                                                <Button size="sm" onClick={() => setGalleryType('video')}><Video className="h-4 w-4 mr-2" /> Video</Button>
-                                            </div>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>Add {galleryType === 'photo' ? 'Photo' : 'YouTube Video'}</DialogTitle>
-                                            </DialogHeader>
-                                            <form onSubmit={handleAddGallery} className="space-y-4 pt-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="url">{galleryType === 'photo' ? 'Image URL' : 'YouTube Link'}</Label>
-                                                    <Input id="url" name="url" placeholder={galleryType === 'photo' ? 'https://...' : 'https://youtube.com/watch?v=...'} required />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="title">Title</Label>
-                                                    <Input id="title" name="title" placeholder="Moment Name" required />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="event_name">Event Name</Label>
-                                                        <Input id="event_name" name="event_name" placeholder="e.g. Annual Day" />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="event_date">Event Date</Label>
-                                                        <Input id="event_date" name="event_date" type="date" required />
-                                                    </div>
-                                                </div>
-                                                <DialogFooter>
-                                                    <Button type="submit" className="w-full">Add to Gallery</Button>
-                                                </DialogFooter>
-                                            </form>
-                                        </DialogContent>
-                                    </Dialog>
-                                </div>
+                                <div><CardTitle>Gallery Management</CardTitle></div>
+                                <Dialog open={isGalleryOpen} onOpenChange={setIsGalleryOpen}>
+                                    <DialogTrigger asChild>
+                                        <div className="flex gap-2">
+                                            <Button size="sm" variant="outline" onClick={() => setGalleryType('photo')}><Plus className="h-4 w-4 mr-2" /> Photo</Button>
+                                            <Button size="sm" onClick={() => setGalleryType('video')}><Video className="h-4 w-4 mr-2" /> Video</Button>
+                                        </div>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader><DialogTitle>Add to Gallery</DialogTitle></DialogHeader>
+                                        <form onSubmit={handleAddGallery} className="space-y-4 pt-4">
+                                            <Input name="url" placeholder="URL" required />
+                                            <Input name="title" placeholder="Title" required />
+                                            <Input name="event_name" placeholder="Event" />
+                                            <Input name="event_date" type="date" required />
+                                            <DialogFooter><Button type="submit" className="w-full">Post</Button></DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
                             </CardHeader>
                             <CardContent>
                                 <div className="grid md:grid-cols-3 gap-6">
                                     {gallery.map((item) => (
-                                        <Card key={item.id} className="overflow-hidden group">
-                                            <div className="h-48 bg-muted flex items-center justify-center relative">
-                                                {item.type === 'photo' ? (
-                                                    <img src={item.url} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                        <Video className="h-10 w-10" />
-                                                        <span className="text-xs">Video Content</span>
-                                                    </div>
-                                                )}
-                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteItem('gallery_items', item.id)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                                <span className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase pointer-events-none">
-                                                    {item.type}
-                                                </span>
+                                        <Card key={item.id} className="overflow-hidden group relative">
+                                            <div className="h-40 bg-muted">
+                                                {item.type === 'photo' && <img src={item.url} className="w-full h-full object-cover" />}
                                             </div>
                                             <CardContent className="p-4">
-                                                <h4 className="font-bold truncate">{item.title}</h4>
-                                                <p className="text-xs text-muted-foreground mt-1">{item.event_name} • {item.event_date}</p>
+                                                <p className="font-bold truncate">{item.title}</p>
+                                                {user.role === 'admin' && (
+                                                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteItem('gallery_items', item.id)}>
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                )}
                                             </CardContent>
                                         </Card>
                                     ))}
-                                    {gallery.length === 0 && (
-                                        <div className="col-span-full py-20 text-center border-2 border-dashed rounded-2xl">
-                                            <Camera className="h-10 w-10 mx-auto mb-4 opacity-20" />
-                                            <p className="text-muted-foreground">Gallery is empty.</p>
-                                        </div>
-                                    )}
                                 </div>
                             </CardContent>
                         </Card>

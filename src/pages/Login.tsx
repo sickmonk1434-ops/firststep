@@ -1,6 +1,8 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
+import { db } from "@/db/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,23 +16,40 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const navigate = useNavigate();
+    const { login } = useAuth();
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError("");
 
-        // Simple mock authentication
-        setTimeout(() => {
-            if (email === "admin@thefirststep.com" && password === "admin123") {
-                toast.success("Login successful!");
+        try {
+            // In a real app, we'd hash passwords. Here we check plain text for the demo.
+            const result = await db.execute({
+                sql: "SELECT * FROM users WHERE email = ? AND password = ?",
+                args: [email, password]
+            });
+
+            if (result.rows.length > 0) {
+                const user = result.rows[0];
+                login(
+                    user.email as string,
+                    user.role as 'admin' | 'principal' | 'teacher' | 'parent',
+                    user.name as string,
+                    user.id as number
+                );
+                toast.success(`Welcome back, ${user.name}!`);
                 navigate("/admin");
             } else {
                 setError("Invalid email or password. Hint: admin@thefirststep.com / admin123");
                 toast.error("Login failed");
             }
+        } catch (err) {
+            console.error(err);
+            setError("Database connection failed. Please check your credentials.");
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     return (
@@ -38,8 +57,8 @@ const Login = () => {
             <Card className="w-full max-w-md shadow-2xl border-none overflow-hidden rounded-2xl">
                 <div className="bg-primary p-8 text-center text-white">
                     <GraduationCap className="h-12 w-12 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold">Admin Portal</h1>
-                    <p className="opacity-80 text-sm mt-2">The First Step Pre-School Management</p>
+                    <h1 className="text-2xl font-bold">The First Step Portal</h1>
+                    <p className="opacity-80 text-sm mt-2">Sign in to access your dashboard</p>
                 </div>
 
                 <form onSubmit={handleLogin}>
@@ -51,14 +70,14 @@ const Login = () => {
                             </div>
                         )}
                         <div className="space-y-2">
-                            <Label htmlFor="email">Work Email</Label>
+                            <Label htmlFor="email">Email Address</Label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     id="email"
                                     type="email"
                                     className="pl-10"
-                                    placeholder="admin@thefirststep.com"
+                                    placeholder="your@email.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
@@ -80,14 +99,17 @@ const Login = () => {
                                 />
                             </div>
                         </div>
+                        <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
+                            <p className="font-bold mb-1">Demo Credentials:</p>
+                            <ul className="space-y-1">
+                                <li>Admin: admin@thefirststep.com / admin123</li>
+                            </ul>
+                        </div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-4 pb-8">
                         <Button type="submit" className="w-full h-12 text-lg group" disabled={loading}>
-                            {loading ? "Logging in..." : "Secure Login"}
+                            {loading ? "Authenticating..." : "Sign In"}
                             <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                        </Button>
-                        <Button variant="ghost" type="button" className="text-muted-foreground text-xs" onClick={() => window.location.href = "/"}>
-                            Back to Public Site
                         </Button>
                     </CardFooter>
                 </form>

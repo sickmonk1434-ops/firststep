@@ -9,10 +9,11 @@ import FAQ from "./pages/FAQ";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import { Toaster } from "sonner";
+import { AuthProvider } from "./lib/auth";
 
 function App() {
   return (
-    <>
+    <AuthProvider>
       <Toaster position="top-center" richColors />
       <HashRouter>
         <Routes>
@@ -27,7 +28,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </HashRouter>
-    </>
+    </AuthProvider>
   );
 }
 
