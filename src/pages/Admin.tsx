@@ -9,20 +9,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GraduationCap, ImageIcon, Users, Camera, Video, Plus, Check, X, Trash2, Clock, ShieldCheck, UserPlus } from "lucide-react";
+import {
+    GraduationCap, ImageIcon, Users, Camera, Video, Plus, Check, X,
+    Trash2, Clock, ShieldCheck, UserPlus, BarChart3, Receipt, IndianRupee,
+    Briefcase, TrendingUp, Sun, MessageSquare
+} from "lucide-react";
 import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
+
+// New admin-only report tabs
+import ReportsTab from "./admin/ReportsTab";
+import ExpenditureTab from "./admin/ExpenditureTab";
+import AdmissionsTab from "./admin/AdmissionsTab";
+import SalariesTab from "./admin/SalariesTab";
+import EmployeesTab from "./admin/EmployeesTab";
+import InvestmentTab from "./admin/InvestmentTab";
+import SummerCampTab from "./admin/SummerCampTab";
+import EnquiriesTab from "./admin/EnquiriesTab";
 
 const Admin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("dashboard");
 
     // Data states
-    const [applications, setApplications] = useState<any[]>([]);
-    const [banners, setBanners] = useState<any[]>([]);
-    const [gallery, setGallery] = useState<any[]>([]);
-    const [staff, setStaff] = useState<any[]>([]);
-    const [attendance, setAttendance] = useState<any[]>([]);
+    const [applications, setApplications] = useState<Record<string, unknown>[]>([]);
+    const [banners, setBanners] = useState<Record<string, unknown>[]>([]);
+    const [gallery, setGallery] = useState<Record<string, unknown>[]>([]);
+    const [staff, setStaff] = useState<Record<string, unknown>[]>([]);
+    const [attendance, setAttendance] = useState<Record<string, unknown>[]>([]);
 
     // Form states
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -33,19 +47,19 @@ const Admin = () => {
         try {
             if (activeTab === "applications") {
                 const res = await db.execute("SELECT * FROM applications ORDER BY created_at DESC");
-                setApplications(res.rows);
+                setApplications(res.rows as Record<string, unknown>[]);
             } else if (activeTab === "attendance") {
                 const res = await db.execute("SELECT * FROM attendance ORDER BY date DESC, clock_in DESC");
-                setAttendance(res.rows);
+                setAttendance(res.rows as Record<string, unknown>[]);
             } else if (activeTab === "staff") {
                 const res = await db.execute("SELECT * FROM users ORDER BY role ASC");
-                setStaff(res.rows);
+                setStaff(res.rows as Record<string, unknown>[]);
             } else if (activeTab === "banners") {
                 const res = await db.execute("SELECT * FROM banner_images ORDER BY display_order ASC");
-                setBanners(res.rows);
+                setBanners(res.rows as Record<string, unknown>[]);
             } else if (activeTab === "gallery") {
                 const res = await db.execute("SELECT * FROM gallery_items ORDER BY event_date DESC");
-                setGallery(res.rows);
+                setGallery(res.rows as Record<string, unknown>[]);
             }
         } catch (err) {
             console.error(err);
@@ -177,6 +191,8 @@ const Admin = () => {
         } catch { toast.error("Failed"); }
     };
 
+    const isAdmin = user.role === 'admin';
+
     return (
         <div className="min-h-screen bg-muted/20 pb-20">
             {/* Admin Header */}
@@ -197,17 +213,26 @@ const Admin = () => {
 
             <div className="container mx-auto px-4 py-8">
                 <Tabs defaultValue="dashboard" className="space-y-6" onValueChange={setActiveTab}>
-                    <TabsList className="bg-white border p-1 rounded-xl w-full h-auto flex flex-wrap gap-2 overflow-x-auto">
-                        <TabsTrigger value="dashboard" className="flex-1">Dashboard</TabsTrigger>
-                        <TabsTrigger value="attendance" className="flex-1"><Clock className="h-4 w-4 mr-2" /> Attendance</TabsTrigger>
-                        <TabsTrigger value="applications" className="flex-1"><Users className="h-4 w-4 mr-2" /> Applications</TabsTrigger>
-                        {(user.role === 'admin' || user.role === 'principal') && (
-                            <TabsTrigger value="gallery" className="flex-1"><Camera className="h-4 w-4 mr-2" /> Gallery</TabsTrigger>
+                    <TabsList className="bg-white border p-1 rounded-xl w-full h-auto flex flex-wrap gap-1 overflow-x-auto">
+                        <TabsTrigger value="dashboard" className="flex-1 min-w-fit">Dashboard</TabsTrigger>
+                        <TabsTrigger value="attendance" className="flex-1 min-w-fit"><Clock className="h-4 w-4 mr-1.5" />Attendance</TabsTrigger>
+                        <TabsTrigger value="applications" className="flex-1 min-w-fit"><Users className="h-4 w-4 mr-1.5" />Applications</TabsTrigger>
+                        {(isAdmin || user.role === 'principal') && (
+                            <TabsTrigger value="gallery" className="flex-1 min-w-fit"><Camera className="h-4 w-4 mr-1.5" />Gallery</TabsTrigger>
                         )}
-                        {user.role === 'admin' && (
+                        {isAdmin && (
                             <>
-                                <TabsTrigger value="staff" className="flex-1"><UserPlus className="h-4 w-4 mr-2" /> Users</TabsTrigger>
-                                <TabsTrigger value="banners" className="flex-1"><ImageIcon className="h-4 w-4 mr-2" /> Banners</TabsTrigger>
+                                <TabsTrigger value="staff" className="flex-1 min-w-fit"><UserPlus className="h-4 w-4 mr-1.5" />Users</TabsTrigger>
+                                <TabsTrigger value="banners" className="flex-1 min-w-fit"><ImageIcon className="h-4 w-4 mr-1.5" />Banners</TabsTrigger>
+                                {/* ── Excel Reports Tabs ── */}
+                                <TabsTrigger value="reports" className="flex-1 min-w-fit"><BarChart3 className="h-4 w-4 mr-1.5" />Reports</TabsTrigger>
+                                <TabsTrigger value="expenditure" className="flex-1 min-w-fit"><Receipt className="h-4 w-4 mr-1.5" />Expenditure</TabsTrigger>
+                                <TabsTrigger value="admissions-data" className="flex-1 min-w-fit"><GraduationCap className="h-4 w-4 mr-1.5" />Admissions</TabsTrigger>
+                                <TabsTrigger value="salaries" className="flex-1 min-w-fit"><IndianRupee className="h-4 w-4 mr-1.5" />Salaries</TabsTrigger>
+                                <TabsTrigger value="employees" className="flex-1 min-w-fit"><Briefcase className="h-4 w-4 mr-1.5" />Employees</TabsTrigger>
+                                <TabsTrigger value="investment" className="flex-1 min-w-fit"><TrendingUp className="h-4 w-4 mr-1.5" />Investment</TabsTrigger>
+                                <TabsTrigger value="summercamp" className="flex-1 min-w-fit"><Sun className="h-4 w-4 mr-1.5" />Summer Camp</TabsTrigger>
+                                <TabsTrigger value="enquiries" className="flex-1 min-w-fit"><MessageSquare className="h-4 w-4 mr-1.5" />Enquiries</TabsTrigger>
                             </>
                         )}
                     </TabsList>
@@ -250,28 +275,28 @@ const Admin = () => {
                             <CardContent>
                                 <div className="space-y-4">
                                     {attendance.map((att) => (
-                                        <div key={att.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
+                                        <div key={String(att.id)} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
                                             <div className="flex items-center gap-4">
                                                 <div className="h-10 w-10 bg-muted rounded-full flex items-center justify-center font-bold text-xs uppercase">
-                                                    {att.type[0]}
+                                                    {String(att.type)[0]}
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold">{att.date}</p>
-                                                    <p className="text-xs text-muted-foreground">In: {new Date(att.clock_in).toLocaleTimeString()} {att.clock_out ? `| Out: ${new Date(att.clock_out).toLocaleTimeString()}` : ''}</p>
+                                                    <p className="font-bold">{String(att.date)}</p>
+                                                    <p className="text-xs text-muted-foreground">In: {new Date(String(att.clock_in)).toLocaleTimeString()} {att.clock_out ? `| Out: ${new Date(String(att.clock_out)).toLocaleTimeString()}` : ''}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${att.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                    {att.status}
+                                                    {String(att.status)}
                                                 </span>
                                                 {(user.role === 'admin' || user.role === 'principal') && att.status === 'pending' && (
                                                     <div className="flex gap-1">
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => handleAttendanceAction(att.id, 'approved')}><Check className="h-4 w-4" /></Button>
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => handleAttendanceAction(att.id, 'rejected')}><X className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => handleAttendanceAction(Number(att.id), 'approved')}><Check className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => handleAttendanceAction(Number(att.id), 'rejected')}><X className="h-4 w-4" /></Button>
                                                     </div>
                                                 )}
                                                 {!att.clock_out && att.target_id === user.id && (
-                                                    <Button size="sm" onClick={() => handleClockOut(att.id)}>Clock Out</Button>
+                                                    <Button size="sm" onClick={() => handleClockOut(Number(att.id))}>Clock Out</Button>
                                                 )}
                                             </div>
                                         </div>
@@ -301,30 +326,30 @@ const Admin = () => {
                                         </thead>
                                         <tbody className="divide-y bg-white">
                                             {applications.map((app) => (
-                                                <tr key={app.id}>
+                                                <tr key={String(app.id)}>
                                                     <td className="px-4 py-4">
-                                                        <div className="font-bold">{app.student_name}</div>
-                                                        <div className="text-xs text-muted-foreground">{app.program_interest}</div>
+                                                        <div className="font-bold">{String(app.student_name)}</div>
+                                                        <div className="text-xs text-muted-foreground">{String(app.program_interest)}</div>
                                                     </td>
                                                     <td className="px-4 py-4">
                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${app.principal_recommendation === 'approved' ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
-                                                            {app.principal_recommendation.toUpperCase()}
+                                                            {String(app.principal_recommendation).toUpperCase()}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-4">
                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${app.admin_confirmation === 'confirmed' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
-                                                            {app.admin_confirmation.toUpperCase()}
+                                                            {String(app.admin_confirmation).toUpperCase()}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-4 text-right space-x-2">
                                                         {user.role === 'principal' && app.principal_recommendation === 'pending' && (
                                                             <div className="flex gap-2 justify-end">
-                                                                <Button size="sm" onClick={() => handleUpdateApplication(app.id, 'approved')}>Recommend</Button>
-                                                                <Button size="sm" variant="ghost" onClick={() => handleUpdateApplication(app.id, 'rejected')}>Reject</Button>
+                                                                <Button size="sm" onClick={() => handleUpdateApplication(Number(app.id), 'approved')}>Recommend</Button>
+                                                                <Button size="sm" variant="ghost" onClick={() => handleUpdateApplication(Number(app.id), 'rejected')}>Reject</Button>
                                                             </div>
                                                         )}
                                                         {user.role === 'admin' && app.principal_recommendation === 'approved' && app.admin_confirmation === 'pending' && (
-                                                            <Button size="sm" className="bg-orange-600 hover:bg-orange-700" onClick={() => handleUpdateApplication(app.id, 'approved')}>
+                                                            <Button size="sm" className="bg-orange-600 hover:bg-orange-700" onClick={() => handleUpdateApplication(Number(app.id), 'approved')}>
                                                                 <ShieldCheck className="h-4 w-4 mr-2" /> Confirm Admission
                                                             </Button>
                                                         )}
@@ -369,16 +394,16 @@ const Admin = () => {
                             <CardContent>
                                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {staff.map((s) => (
-                                        <Card key={s.id} className="relative group overflow-hidden">
+                                        <Card key={String(s.id)} className="relative group overflow-hidden">
                                             <CardHeader className="pb-2">
                                                 <CardTitle className="text-md flex justify-between">
-                                                    {s.name}
-                                                    <span className="text-[10px] bg-primary/10 text-primary px-2 rounded-full uppercase">{s.role}</span>
+                                                    {String(s.name)}
+                                                    <span className="text-[10px] bg-primary/10 text-primary px-2 rounded-full uppercase">{String(s.role)}</span>
                                                 </CardTitle>
-                                                <CardDescription>{s.email}</CardDescription>
+                                                <CardDescription>{String(s.email)}</CardDescription>
                                             </CardHeader>
                                             {user.id !== s.id && (
-                                                <Button size="icon" variant="ghost" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive h-8 w-8" onClick={() => handleDeleteItem('users', s.id)}>
+                                                <Button size="icon" variant="ghost" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive h-8 w-8" onClick={() => handleDeleteItem('users', Number(s.id))}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             )}
@@ -391,16 +416,14 @@ const Admin = () => {
 
                     <TabsContent value="banners">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Banners</CardTitle>
-                            </CardHeader>
+                            <CardHeader><CardTitle>Banners</CardTitle></CardHeader>
                             <CardContent>
                                 <div className="grid gap-4">
                                     {banners.map(b => (
-                                        <div key={b.id} className="flex items-center gap-4 border p-2 rounded">
-                                            <img src={b.url} className="w-20 h-10 object-cover" />
-                                            <div className="flex-1">{b.alt_text}</div>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteItem('banner_images', b.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        <div key={String(b.id)} className="flex items-center gap-4 border p-2 rounded">
+                                            <img src={String(b.url)} className="w-20 h-10 object-cover" />
+                                            <div className="flex-1">{String(b.alt_text)}</div>
+                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteItem('banner_images', Number(b.id))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                         </div>
                                     ))}
                                 </div>
@@ -434,14 +457,14 @@ const Admin = () => {
                             <CardContent>
                                 <div className="grid md:grid-cols-3 gap-6">
                                     {gallery.map((item) => (
-                                        <Card key={item.id} className="overflow-hidden group relative">
+                                        <Card key={String(item.id)} className="overflow-hidden group relative">
                                             <div className="h-40 bg-muted">
-                                                {item.type === 'photo' && <img src={item.url} className="w-full h-full object-cover" />}
+                                                {item.type === 'photo' && <img src={String(item.url)} className="w-full h-full object-cover" />}
                                             </div>
                                             <CardContent className="p-4">
-                                                <p className="font-bold truncate">{item.title}</p>
+                                                <p className="font-bold truncate">{String(item.title)}</p>
                                                 {user.role === 'admin' && (
-                                                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteItem('gallery_items', item.id)}>
+                                                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteItem('gallery_items', Number(item.id))}>
                                                         <Trash2 className="h-3 w-3" />
                                                     </Button>
                                                 )}
@@ -452,6 +475,16 @@ const Admin = () => {
                             </CardContent>
                         </Card>
                     </TabsContent>
+
+                    {/* ── New Excel-Powered Report Tabs (Admin Only) ── */}
+                    <TabsContent value="reports"><ReportsTab /></TabsContent>
+                    <TabsContent value="expenditure"><ExpenditureTab /></TabsContent>
+                    <TabsContent value="admissions-data"><AdmissionsTab /></TabsContent>
+                    <TabsContent value="salaries"><SalariesTab /></TabsContent>
+                    <TabsContent value="employees"><EmployeesTab /></TabsContent>
+                    <TabsContent value="investment"><InvestmentTab /></TabsContent>
+                    <TabsContent value="summercamp"><SummerCampTab /></TabsContent>
+                    <TabsContent value="enquiries"><EnquiriesTab /></TabsContent>
                 </Tabs>
             </div>
         </div>
