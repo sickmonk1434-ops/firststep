@@ -7,6 +7,7 @@ import Programs from "./pages/Programs";
 import Gallery from "./pages/Gallery";
 import FAQ from "./pages/FAQ";
 import Admin from "./pages/Admin";
+import SuperAdmin from "./pages/SuperAdmin";
 import Login from "./pages/Login";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./lib/auth";
@@ -26,6 +27,7 @@ function App() {
             <Route path="login" element={<Login />} />
           </Route>
           <Route path="/admin" element={<Admin />} />
+          <Route path="/superadmin" element={<SuperAdmin />} />
         </Routes>
       </HashRouter>
     </AuthProvider>

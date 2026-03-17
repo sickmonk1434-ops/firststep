@@ -1,16 +1,19 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+export type UserRole = 'super_admin' | 'admin' | 'principal' | 'teacher' | 'parent';
+
 interface User {
     id: number;
     email: string;
     name: string;
-    role: 'admin' | 'principal' | 'teacher' | 'parent';
+    role: UserRole;
+    school_id?: number | null;
 }
 
 interface AuthContextType {
     user: User | null;
-    login: (email: string, role: User['role'], name: string, id: number) => void;
+    login: (email: string, role: UserRole, name: string, id: number, school_id?: number | null) => void;
     logout: () => void;
     loading: boolean;
 }
@@ -29,8 +32,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
     }, []);
 
-    const login = (email: string, role: User['role'], name: string, id: number) => {
-        const newUser = { id, email, role, name };
+    const login = (email: string, role: UserRole, name: string, id: number, school_id?: number | null) => {
+        const newUser = { id, email, role, name, school_id: school_id ?? null };
         setUser(newUser);
         localStorage.setItem('fs_user', JSON.stringify(newUser));
     };

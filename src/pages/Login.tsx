@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { GraduationCap, Lock, Mail, ArrowRight, AlertCircle } from "lucide-react";
+import { GraduationCap, Lock, Mail, ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import type { UserRole } from "@/lib/auth";
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -24,7 +25,6 @@ const Login = () => {
         setError("");
 
         try {
-            // In a real app, we'd hash passwords. Here we check plain text for the demo.
             const result = await db.execute({
                 sql: "SELECT * FROM users WHERE email = ? AND password = ?",
                 args: [email, password]
@@ -32,16 +32,22 @@ const Login = () => {
 
             if (result.rows.length > 0) {
                 const user = result.rows[0];
+                const role = user.role as UserRole;
                 login(
                     user.email as string,
-                    user.role as 'admin' | 'principal' | 'teacher' | 'parent',
+                    role,
                     user.name as string,
-                    user.id as number
+                    user.id as number,
+                    user.school_id as number | null
                 );
                 toast.success(`Welcome back, ${user.name}!`);
-                navigate("/admin");
+                if (role === 'super_admin') {
+                    navigate("/superadmin");
+                } else {
+                    navigate("/admin");
+                }
             } else {
-                setError("Invalid email or password. Hint: admin@thefirststep.com / admin123");
+                setError("Invalid email or password.");
                 toast.error("Login failed");
             }
         } catch (err) {
@@ -99,11 +105,16 @@ const Login = () => {
                                 />
                             </div>
                         </div>
-                        <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
-                            <p className="font-bold mb-1">Demo Credentials:</p>
-                            <ul className="space-y-1">
-                                <li>Admin: admin@thefirststep.com / admin123</li>
-                            </ul>
+                        <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg space-y-2">
+                            <p className="font-bold">Demo Credentials:</p>
+                            <div className="space-y-1">
+                                <p className="flex items-center gap-1.5">
+                                    <ShieldCheck className="h-3 w-3 text-violet-600" />
+                                    <span className="font-semibold text-violet-700">Super Admin:</span>
+                                    superadmin@thefirststep.com / superadmin123
+                                </p>
+                                <p>Admin: admin@thefirststep.com / admin123</p>
+                            </div>
                         </div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-4 pb-8">
