@@ -108,7 +108,7 @@ export default function SummerCampTab() {
                 <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-S000001" /></div>
                 <div><Label>Year</Label>
                     <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.year} onChange={f("year")}>
-                        <option value="2025">2025</option><option value="2024">2024</option>
+                        <option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
                     </select>
                 </div>
             </div>
@@ -150,11 +150,11 @@ export default function SummerCampTab() {
             <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-4">
                 <div>
                     <CardTitle>Summer Camp</CardTitle>
-                    <CardDescription>Summer camp enrollments for {year}</CardDescription>
+                    <CardDescription>Summer camp enrollments for {year}-{parseInt(year) + 1}</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                     <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={e => setYear(e.target.value)}>
-                        <option value="2025">2025</option><option value="2024">2024</option>
+                        <option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
                     </select>
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild><Button size="sm" onClick={() => { setForm({ ...emptyForm(), year }); setIsAddOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Student</Button></DialogTrigger>
