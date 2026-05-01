@@ -114,13 +114,13 @@ const SuperAdmin = () => {
             if (editSchool) {
                 await db.execute({
                     sql: "UPDATE schools SET name=?,branch_code=?,address=?,phone=?,email=? WHERE id=?",
-                    args: [fd.get('name'), fd.get('branch_code'), fd.get('address'), fd.get('phone'), fd.get('email'), editSchool.id]
+                    args: [fd.get('name') as string, fd.get('branch_code') as string, fd.get('address') as string, fd.get('phone') as string, fd.get('email') as string, editSchool.id]
                 });
                 toast.success("School updated");
             } else {
                 await db.execute({
                     sql: "INSERT INTO schools (name,branch_code,address,phone,email) VALUES (?,?,?,?,?)",
-                    args: [fd.get('name'), fd.get('branch_code'), fd.get('address'), fd.get('phone'), fd.get('email')]
+                    args: [fd.get('name') as string, fd.get('branch_code') as string, fd.get('address') as string, fd.get('phone') as string, fd.get('email') as string]
                 });
                 toast.success("School created");
             }
@@ -152,13 +152,13 @@ const SuperAdmin = () => {
             if (editUser) {
                 await db.execute({
                     sql: "UPDATE users SET name=?,email=?,role=?,school_id=? WHERE id=?",
-                    args: [fd.get('name'), fd.get('email'), role, school_id, editUser.id]
+                    args: [fd.get('name') as string, fd.get('email') as string, role, school_id, editUser.id]
                 });
                 toast.success("User updated");
             } else {
                 await db.execute({
                     sql: "INSERT INTO users (name,email,password,role,school_id) VALUES (?,?,?,?,?)",
-                    args: [fd.get('name'), fd.get('email'), fd.get('password'), role, school_id]
+                    args: [fd.get('name') as string, fd.get('email') as string, fd.get('password') as string, role, school_id]
                 });
                 toast.success("User created");
             }
