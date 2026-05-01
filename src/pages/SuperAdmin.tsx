@@ -56,7 +56,7 @@ interface Stats {
 const SuperAdmin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
-    const [academicYear, setAcademicYear] = useState("2025");
+    const academicYear = "2025";
 
     // Data
     const [schools, setSchools] = useState<School[]>([]);
@@ -224,11 +224,6 @@ const SuperAdmin = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <select className="bg-white/10 border border-white/20 text-white rounded-md px-3 py-1.5 text-sm hidden md:block outline-none" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
-                            <option value="2025" className="text-black">2025-2026</option>
-                            <option value="2024" className="text-black">2024-2025</option>
-                            <option value="2023" className="text-black">2023-2024</option>
-                        </select>
                         <span className="text-sm text-white/70 hidden md:block">{user.name}</span>
                         <Button
                             variant="ghost"

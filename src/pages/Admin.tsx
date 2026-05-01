@@ -30,7 +30,7 @@ import EnquiriesTab from "./admin/EnquiriesTab";
 const Admin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("dashboard");
-    const [academicYear, setAcademicYear] = useState("2025");
+    const academicYear = "2025";
 
     // Data states
     const [applications, setApplications] = useState<Record<string, unknown>[]>([]);
@@ -215,11 +215,6 @@ const Admin = () => {
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
-                        <select className="border rounded-md px-3 py-1.5 text-sm hidden md:block" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
-                            <option value="2025">2025-2026</option>
-                            <option value="2024">2024-2025</option>
-                            <option value="2023">2023-2024</option>
-                        </select>
                         <span className="text-sm font-medium hidden md:block">Welcome, {user.name}</span>
                         <Button variant="outline" size="sm" onClick={logout}>Logout</Button>
                     </div>
