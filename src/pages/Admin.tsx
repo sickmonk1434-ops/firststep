@@ -31,8 +31,10 @@ const Admin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("dashboard");
     
-    const today = new Date();
-    const academicYear = today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
+    const [academicYear, setAcademicYear] = useState(() => {
+        const today = new Date();
+        return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
+    });
 
     // Data states
     const [applications, setApplications] = useState<Record<string, unknown>[]>([]);
@@ -280,9 +282,19 @@ const Admin = () => {
                     {/* Attendance Tab */}
                     <TabsContent value="attendance">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Attendance Log</CardTitle>
-                                <CardDescription>Records of clock-ins and outs.</CardDescription>
+                            <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-4">
+                                <div>
+                                    <CardTitle>Attendance Log</CardTitle>
+                                    <CardDescription>Records of clock-ins and outs for {academicYear}-{parseInt(academicYear) + 1}.</CardDescription>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <select className="border rounded-md px-3 py-1.5 text-sm" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
+                                        <option value="2026">2026-2027</option>
+                                        <option value="2025">2025-2026</option>
+                                        <option value="2024">2024-2025</option>
+                                        <option value="2023">2023-2024</option>
+                                    </select>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
@@ -321,9 +333,19 @@ const Admin = () => {
                     {/* Applications Tab */}
                     <TabsContent value="applications">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Admission Pipeline</CardTitle>
-                                <CardDescription>Two-step approval: Principal (Review) → Admin (Confirm)</CardDescription>
+                            <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-4">
+                                <div>
+                                    <CardTitle>Admission Pipeline</CardTitle>
+                                    <CardDescription>Two-step approval: Principal (Review) → Admin (Confirm) for {academicYear}-{parseInt(academicYear) + 1}</CardDescription>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <select className="border rounded-md px-3 py-1.5 text-sm" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
+                                        <option value="2026">2026-2027</option>
+                                        <option value="2025">2025-2026</option>
+                                        <option value="2024">2024-2025</option>
+                                        <option value="2023">2023-2024</option>
+                                    </select>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">

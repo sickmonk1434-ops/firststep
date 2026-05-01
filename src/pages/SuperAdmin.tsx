@@ -57,8 +57,10 @@ const SuperAdmin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
     
-    const today = new Date();
-    const academicYear = today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
+    const [academicYear, setAcademicYear] = useState(() => {
+        const today = new Date();
+        return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
+    });
 
     // Data
     const [schools, setSchools] = useState<School[]>([]);
@@ -260,9 +262,24 @@ const SuperAdmin = () => {
 
                     {/* ══════════════════ OVERVIEW ══════════════════ */}
                     <TabsContent value="overview" className="space-y-6">
-                        <div>
-                            <h2 className="text-2xl font-bold mb-1">Network Overview</h2>
-                            <p className="text-white/50 text-sm">Combined stats across all schools</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-2xl font-bold mb-1">Network Overview</h2>
+                                <p className="text-white/50 text-sm">Combined stats across all schools for {academicYear}-{parseInt(academicYear) + 1}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Select value={academicYear} onValueChange={setAcademicYear}>
+                                    <SelectTrigger className="w-40 bg-white/10 border-white/20 text-white">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="2026">2026-2027</SelectItem>
+                                        <SelectItem value="2025">2025-2026</SelectItem>
+                                        <SelectItem value="2024">2024-2025</SelectItem>
+                                        <SelectItem value="2023">2023-2024</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         {/* KPI Cards */}
