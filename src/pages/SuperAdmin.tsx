@@ -94,18 +94,27 @@ const SuperAdmin = () => {
                 const res = await db.execute("SELECT id,email,name,role,school_id FROM users ORDER BY role,name");
                 setUsers(res.rows as unknown as UserRow[]);
             }
+            // Use local variables to avoid stale-state race condition
+            let resolvedYears: AcademicYearRow[] = academicYears;
+            let resolvedYearId: string = academicYear;
+
             if (activeTab === "settings" || activeTab === "overview") {
                 const res = await db.execute("SELECT * FROM academic_years ORDER BY start_date DESC");
-                const years = res.rows as unknown as AcademicYearRow[];
-                setAcademicYears(years);
-                if (!academicYear) {
-                    const active = years.find(y => y.is_active === 1 && y.type === 'normal');
-                    if (active) setAcademicYear(active.id.toString());
-                    else if (years.length > 0) setAcademicYear(years[0].id.toString());
+                resolvedYears = res.rows as unknown as AcademicYearRow[];
+                setAcademicYears(resolvedYears);
+                if (!resolvedYearId) {
+                    const active = resolvedYears.find(y => y.is_active === 1 && y.type === 'normal');
+                    if (active && active.id != null) {
+                        resolvedYearId = active.id.toString();
+                    } else if (resolvedYears.length > 0 && resolvedYears[0].id != null) {
+                        resolvedYearId = resolvedYears[0].id.toString();
+                    }
+                    if (resolvedYearId) setAcademicYear(resolvedYearId);
                 }
             }
             if (activeTab === "overview") {
-                const currentYear = academicYears.find(y => y.id.toString() === academicYear);
+                // Use resolvedYears (local) — state hasn't updated yet at this point
+                const currentYear = resolvedYears.find(y => y.id.toString() === resolvedYearId);
                 if (!currentYear) return;
 
                 const startDate = currentYear.start_date;
