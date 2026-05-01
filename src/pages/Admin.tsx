@@ -251,13 +251,15 @@ const Admin = () => {
                         {(isAdmin || user.role === 'principal') && (
                             <TabsTrigger value="gallery" className="flex-1 min-w-fit"><Camera className="h-4 w-4 mr-1.5" />Gallery</TabsTrigger>
                         )}
+                        {(isAdmin || user.role === 'principal') && (
+                            <TabsTrigger value="expenditure" className="flex-1 min-w-fit"><Receipt className="h-4 w-4 mr-1.5" />Expenditure</TabsTrigger>
+                        )}
                         {isAdmin && (
                             <>
                                 <TabsTrigger value="staff" className="flex-1 min-w-fit"><UserPlus className="h-4 w-4 mr-1.5" />Users</TabsTrigger>
                                 <TabsTrigger value="banners" className="flex-1 min-w-fit"><ImageIcon className="h-4 w-4 mr-1.5" />Banners</TabsTrigger>
                                 {/* ── Excel Reports Tabs ── */}
                                 <TabsTrigger value="reports" className="flex-1 min-w-fit"><BarChart3 className="h-4 w-4 mr-1.5" />Reports</TabsTrigger>
-                                <TabsTrigger value="expenditure" className="flex-1 min-w-fit"><Receipt className="h-4 w-4 mr-1.5" />Expenditure</TabsTrigger>
                                 <TabsTrigger value="admissions-data" className="flex-1 min-w-fit"><GraduationCap className="h-4 w-4 mr-1.5" />Admissions</TabsTrigger>
                                 <TabsTrigger value="salaries" className="flex-1 min-w-fit"><IndianRupee className="h-4 w-4 mr-1.5" />Salaries</TabsTrigger>
                                 <TabsTrigger value="employees" className="flex-1 min-w-fit"><Briefcase className="h-4 w-4 mr-1.5" />Employees</TabsTrigger>
@@ -527,7 +529,7 @@ const Admin = () => {
 
                     {/* ── New Excel-Powered Report Tabs (Admin Only) ── */}
                     <TabsContent value="reports"><ReportsTab /></TabsContent>
-                    <TabsContent value="expenditure"><ExpenditureTab /></TabsContent>
+                    <TabsContent value="expenditure"><ExpenditureTab userRole={user.role} userEmail={user.email} /></TabsContent>
                     <TabsContent value="admissions-data"><AdmissionsTab /></TabsContent>
                     <TabsContent value="salaries"><SalariesTab /></TabsContent>
                     <TabsContent value="employees"><EmployeesTab /></TabsContent>

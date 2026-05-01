@@ -27,7 +27,13 @@ const TYPES = [
 
 // getCurrentAcademicYear is deprecated
 
-export default function ExpenditureTab() {
+interface ExpenditureTabProps {
+    userRole?: string;
+    userEmail?: string;
+}
+
+export default function ExpenditureTab({ userRole, userEmail }: ExpenditureTabProps) {
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
     const [rows, setRows] = useState<ExpenditureRow[]>([]);
     const [academicYears, setAcademicYears] = useState<any[]>([]);
     const [yearId, setYearId] = useState<string>("");
@@ -57,14 +63,24 @@ export default function ExpenditureTab() {
             const currentYear = academicYears.find(y => y.id.toString() === yearId);
             if (!currentYear) return;
 
-            const res = await db.execute({
-                sql: "SELECT * FROM expenditure WHERE date >= ? AND date <= ? ORDER BY date DESC, id DESC LIMIT 500",
-                args: [currentYear.start_date, currentYear.end_date]
-            });
+            let query: string;
+            let args: any[];
+
+            if (isAdmin) {
+                // Admins see all expenses
+                query = "SELECT * FROM expenditure WHERE date >= ? AND date <= ? ORDER BY date DESC, id DESC LIMIT 500";
+                args = [currentYear.start_date, currentYear.end_date];
+            } else {
+                // Principals see only their own expenses
+                query = "SELECT * FROM expenditure WHERE date >= ? AND date <= ? AND created_by = ? ORDER BY date DESC, id DESC LIMIT 500";
+                args = [currentYear.start_date, currentYear.end_date, userEmail || ''];
+            }
+
+            const res = await db.execute({ sql: query, args });
             setRows(res.rows as unknown as ExpenditureRow[]);
         } catch { toast.error("Failed to load expenditure data"); }
         finally { setLoading(false); }
-    }, [yearId, academicYears]);
+    }, [yearId, academicYears, isAdmin, userEmail]);
 
     useEffect(() => { fetchYears(); }, [fetchYears]);
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -108,8 +124,8 @@ export default function ExpenditureTab() {
                 toast.success("Updated");
             } else {
                 await db.execute({
-                    sql: "INSERT INTO expenditure (date, category, description, type, amount, mode, remark, estimation) VALUES (?,?,?,?,?,?,?,?)",
-                    args: [form.date, form.category, form.description, form.type, parseFloat(form.amount) || 0, form.mode, form.remark, parseFloat(form.estimation) || 0]
+                    sql: "INSERT INTO expenditure (date, category, description, type, amount, mode, remark, estimation, created_by) VALUES (?,?,?,?,?,?,?,?,?)",
+                    args: [form.date, form.category, form.description, form.type, parseFloat(form.amount) || 0, form.mode, form.remark, parseFloat(form.estimation) || 0, userEmail || null]
                 });
                 setIsAddOpen(false);
                 toast.success("Added");
@@ -121,7 +137,12 @@ export default function ExpenditureTab() {
     const handleDelete = async (id: number) => {
         if (!confirm("Delete this entry?")) return;
         try {
-            await db.execute({ sql: "DELETE FROM expenditure WHERE id=?", args: [id] });
+            if (isAdmin) {
+                await db.execute({ sql: "DELETE FROM expenditure WHERE id=?", args: [id] });
+            } else {
+                // Principals can only delete their own
+                await db.execute({ sql: "DELETE FROM expenditure WHERE id=? AND created_by=?", args: [id, userEmail || ''] });
+            }
             toast.success("Deleted");
             fetchData();
         } catch { toast.error("Delete failed"); }
