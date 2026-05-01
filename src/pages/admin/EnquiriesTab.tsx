@@ -27,6 +27,7 @@ const emptyForm = () => ({
 
 export default function EnquiriesTab() {
     const [rows, setRows] = useState<EnquiryRow[]>([]);
+    const [year, setYear] = useState("2025");
     const [search, setSearch] = useState("");
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editRow, setEditRow] = useState<EnquiryRow | null>(null);
@@ -36,11 +37,16 @@ export default function EnquiriesTab() {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await db.execute("SELECT * FROM enquiries ORDER BY id DESC");
+            const startDate = `${year}-04-01`;
+            const endDate = `${parseInt(year) + 1}-03-31`;
+            const res = await db.execute({
+                sql: "SELECT * FROM enquiries WHERE timestamp >= ? AND timestamp <= ? ORDER BY id DESC",
+                args: [startDate, endDate]
+            });
             setRows(res.rows as unknown as EnquiryRow[]);
         } catch { toast.error("Failed to load enquiries"); }
         finally { setLoading(false); }
-    }, []);
+    }, [year]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -103,12 +109,19 @@ export default function EnquiriesTab() {
             <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-4">
                 <div>
                     <CardTitle>Preschool Enquiries</CardTitle>
-                    <CardDescription>Incoming enquiries and leads</CardDescription>
+                    <CardDescription>Incoming enquiries and leads for {year}-{parseInt(year) + 1}</CardDescription>
                 </div>
-                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                    <DialogTrigger asChild><Button size="sm" onClick={() => { setForm(emptyForm()); setIsAddOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Enquiry</Button></DialogTrigger>
-                    <DialogContent><DialogHeader><DialogTitle>Add Enquiry</DialogTitle></DialogHeader><FormFields /><DialogFooter className="pt-2"><Button className="w-full" onClick={handleSave}>Save</Button></DialogFooter></DialogContent>
-                </Dialog>
+                <div className="flex items-center gap-2">
+                    <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={e => setYear(e.target.value)}>
+                        <option value="2025">2025-2026</option>
+                        <option value="2024">2024-2025</option>
+                        <option value="2023">2023-2024</option>
+                    </select>
+                    <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                        <DialogTrigger asChild><Button size="sm" onClick={() => { setForm(emptyForm()); setIsAddOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Enquiry</Button></DialogTrigger>
+                        <DialogContent><DialogHeader><DialogTitle>Add Enquiry</DialogTitle></DialogHeader><FormFields /><DialogFooter className="pt-2"><Button className="w-full" onClick={handleSave}>Save</Button></DialogFooter></DialogContent>
+                    </Dialog>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-2 gap-3 mb-5">

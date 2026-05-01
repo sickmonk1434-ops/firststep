@@ -56,6 +56,7 @@ interface Stats {
 const SuperAdmin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
+    const [academicYear, setAcademicYear] = useState("2025");
 
     // Data
     const [schools, setSchools] = useState<School[]>([]);
@@ -80,10 +81,15 @@ const SuperAdmin = () => {
                 setUsers(res.rows as unknown as UserRow[]);
             }
             if (activeTab === "overview") {
+                const startDate = `${academicYear}-04-01`;
+                const endDate = `${parseInt(academicYear) + 1}-03-31 23:59:59`;
                 const [sc, us, ap] = await Promise.all([
                     db.execute("SELECT COUNT(*) as c FROM schools"),
                     db.execute("SELECT COUNT(*) as c FROM users"),
-                    db.execute("SELECT COUNT(*) as c FROM applications"),
+                    db.execute({
+                        sql: "SELECT COUNT(*) as c FROM applications WHERE created_at >= ? AND created_at <= ?",
+                        args: [startDate, endDate]
+                    }),
                 ]);
                 setStats({
                     schools: sc.rows[0].c as number,
@@ -96,7 +102,7 @@ const SuperAdmin = () => {
             console.error(err);
             toast.error("Failed to load data");
         }
-    }, [activeTab]);
+    }, [activeTab, academicYear]);
 
     useEffect(() => {
         if (user?.role === 'super_admin') fetchData();
@@ -218,6 +224,11 @@ const SuperAdmin = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        <select className="bg-white/10 border border-white/20 text-white rounded-md px-3 py-1.5 text-sm hidden md:block outline-none" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
+                            <option value="2025" className="text-black">2025-2026</option>
+                            <option value="2024" className="text-black">2024-2025</option>
+                            <option value="2023" className="text-black">2023-2024</option>
+                        </select>
                         <span className="text-sm text-white/70 hidden md:block">{user.name}</span>
                         <Button
                             variant="ghost"

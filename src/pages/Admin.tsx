@@ -30,6 +30,7 @@ import EnquiriesTab from "./admin/EnquiriesTab";
 const Admin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("dashboard");
+    const [academicYear, setAcademicYear] = useState("2025");
 
     // Data states
     const [applications, setApplications] = useState<Record<string, unknown>[]>([]);
@@ -45,11 +46,20 @@ const Admin = () => {
 
     const fetchData = useCallback(async () => {
         try {
+            const startDate = `${academicYear}-04-01`;
+            const endDate = `${parseInt(academicYear) + 1}-03-31 23:59:59`;
+            
             if (activeTab === "applications") {
-                const res = await db.execute("SELECT * FROM applications ORDER BY created_at DESC");
+                const res = await db.execute({
+                    sql: "SELECT * FROM applications WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC",
+                    args: [startDate, endDate]
+                });
                 setApplications(res.rows as Record<string, unknown>[]);
             } else if (activeTab === "attendance") {
-                const res = await db.execute("SELECT * FROM attendance ORDER BY date DESC, clock_in DESC");
+                const res = await db.execute({
+                    sql: "SELECT * FROM attendance WHERE date >= ? AND date <= ? ORDER BY date DESC, clock_in DESC",
+                    args: [`${academicYear}-04-01`, `${parseInt(academicYear) + 1}-03-31`]
+                });
                 setAttendance(res.rows as Record<string, unknown>[]);
             } else if (activeTab === "staff") {
                 const res = await db.execute("SELECT * FROM users ORDER BY role ASC");
@@ -65,7 +75,7 @@ const Admin = () => {
             console.error(err);
             toast.error("Failed to fetch data");
         }
-    }, [activeTab]);
+    }, [activeTab, academicYear]);
 
     useEffect(() => {
         if (user) {
@@ -205,6 +215,11 @@ const Admin = () => {
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
+                        <select className="border rounded-md px-3 py-1.5 text-sm hidden md:block" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
+                            <option value="2025">2025-2026</option>
+                            <option value="2024">2024-2025</option>
+                            <option value="2023">2023-2024</option>
+                        </select>
                         <span className="text-sm font-medium hidden md:block">Welcome, {user.name}</span>
                         <Button variant="outline" size="sm" onClick={logout}>Logout</Button>
                     </div>
