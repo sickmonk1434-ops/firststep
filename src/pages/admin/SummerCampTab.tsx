@@ -40,22 +40,45 @@ const emptyForm = () => ({
 
 export default function SummerCampTab() {
     const [rows, setRows] = useState<SummerCampRow[]>([]);
-    const [year, setYear] = useState(getCurrentAcademicYear());
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const [yearId, setYearId] = useState<string>("");
     const [search, setSearch] = useState("");
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editRow, setEditRow] = useState<SummerCampRow | null>(null);
     const [form, setForm] = useState(emptyForm());
     const [loading, setLoading] = useState(true);
 
+    const fetchYears = useCallback(async () => {
+        try {
+            const res = await db.execute("SELECT * FROM academic_years WHERE type='summer_camp' ORDER BY start_date DESC");
+            setAcademicYears(res.rows);
+            const active = res.rows.find((r: any) => r.is_active === 1);
+            if (active && active.id !== null && active.id !== undefined) {
+                setYearId(active.id.toString());
+            } else if (res.rows.length > 0 && res.rows[0].id !== null && res.rows[0].id !== undefined) {
+                setYearId(res.rows[0].id.toString());
+            }
+        } catch { toast.error("Failed to load summer camp cycles"); }
+    }, []);
+
     const fetchData = useCallback(async () => {
+        if (!yearId) return;
         setLoading(true);
         try {
-            const res = await db.execute({ sql: "SELECT * FROM summer_camp WHERE year=? ORDER BY student_id ASC", args: [parseInt(year)] });
+            const currentYear = academicYears.find(y => y.id.toString() === yearId);
+            if (!currentYear) return;
+            
+            // Filter by date range instead of just year number
+            const res = await db.execute({ 
+                sql: "SELECT * FROM summer_camp WHERE joining_date >= ? AND joining_date <= ? ORDER BY student_id ASC", 
+                args: [currentYear.start_date, currentYear.end_date] 
+            });
             setRows(res.rows as unknown as SummerCampRow[]);
         } catch { toast.error("Failed to load summer camp data"); }
         finally { setLoading(false); }
-    }, [year]);
+    }, [yearId, academicYears]);
 
+    useEffect(() => { fetchYears(); }, [fetchYears]);
     useEffect(() => { fetchData(); }, [fetchData]);
 
     const f = (k: keyof ReturnType<typeof emptyForm>) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -87,7 +110,7 @@ export default function SummerCampTab() {
         const args = [
             form.student_id, form.status, form.student_name, form.parent_name, form.phone, form.email,
             form.joining_date, form.end_date, form.admission_type, form.payment_period,
-            parseFloat(form.fee_registered) || 0, parseFloat(form.paid) || 0, parseFloat(form.fee_balance) || 0, parseInt(form.year) || parseInt(getCurrentAcademicYear())
+            parseFloat(form.fee_registered) || 0, parseFloat(form.paid) || 0, parseFloat(form.fee_balance) || 0, parseInt(yearId) || parseInt(getCurrentAcademicYear())
         ];
         try {
             if (editRow) {
@@ -111,10 +134,8 @@ export default function SummerCampTab() {
         <div className="space-y-3 pt-2">
             <div className="grid grid-cols-2 gap-3">
                 <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-S000001" /></div>
-                <div><Label>Year</Label>
-                    <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.year} onChange={f("year")}>
-                        <option value="2026">2026-2027</option><option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
-                    </select>
+                <div><Label>Year (Auto)</Label>
+                    <Input value={academicYears.find(y => y.id.toString() === yearId)?.name || "N/A"} disabled />
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -155,14 +176,16 @@ export default function SummerCampTab() {
             <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-4">
                 <div>
                     <CardTitle>Summer Camp</CardTitle>
-                    <CardDescription>Summer camp enrollments for {year}-{parseInt(year) + 1}</CardDescription>
+                    <CardDescription>Summer camp enrollments for {academicYears.find(y => y.id.toString() === yearId)?.name || "Selected Period"}</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                    <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={e => setYear(e.target.value)}>
-                        <option value="2026">2026-2027</option><option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
+                    <select className="border rounded-md px-3 py-1.5 text-sm" value={yearId} onChange={e => setYearId(e.target.value)}>
+                        {academicYears.map(y => (
+                            <option key={y.id} value={y.id.toString()}>{y.name}</option>
+                        ))}
                     </select>
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                        <DialogTrigger asChild><Button size="sm" onClick={() => { setForm({ ...emptyForm(), year }); setIsAddOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Student</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button size="sm" onClick={() => { setForm({ ...emptyForm(), year: yearId }); setIsAddOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Student</Button></DialogTrigger>
                         <DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Add Summer Camp Student</DialogTitle></DialogHeader><FormFields /><DialogFooter className="pt-2"><Button className="w-full" onClick={handleSave}>Save</Button></DialogFooter></DialogContent>
                     </Dialog>
                 </div>

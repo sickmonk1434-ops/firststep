@@ -31,10 +31,8 @@ const Admin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("dashboard");
     
-    const [academicYear, setAcademicYear] = useState(() => {
-        const today = new Date();
-        return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
-    });
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const [yearId, setYearId] = useState<string>("");
 
     // Data states
     const [applications, setApplications] = useState<Record<string, unknown>[]>([]);
@@ -48,10 +46,27 @@ const Admin = () => {
     const [isStaffOpen, setIsStaffOpen] = useState(false);
     const [galleryType, setGalleryType] = useState<'photo' | 'video'>('photo');
 
-    const fetchData = useCallback(async () => {
+    const fetchYears = useCallback(async () => {
         try {
-            const startDate = `${academicYear}-04-01`;
-            const endDate = `${parseInt(academicYear) + 1}-03-31 23:59:59`;
+            const res = await db.execute("SELECT * FROM academic_years WHERE type='normal' ORDER BY start_date DESC");
+            setAcademicYears(res.rows);
+            const active = res.rows.find((r: any) => r.is_active === 1);
+            if (active && active.id !== null && active.id !== undefined) {
+                setYearId(active.id.toString());
+            } else if (res.rows.length > 0 && res.rows[0].id !== null && res.rows[0].id !== undefined) {
+                setYearId(res.rows[0].id.toString());
+            }
+        } catch { toast.error("Failed to load cycles"); }
+    }, []);
+
+    const fetchData = useCallback(async () => {
+        if (!yearId) return;
+        try {
+            const currentYear = academicYears.find(y => y.id.toString() === yearId);
+            if (!currentYear) return;
+
+            const startDate = currentYear.start_date;
+            const endDate = currentYear.end_date + " 23:59:59";
             
             if (activeTab === "applications") {
                 const res = await db.execute({
@@ -62,7 +77,7 @@ const Admin = () => {
             } else if (activeTab === "attendance") {
                 const res = await db.execute({
                     sql: "SELECT * FROM attendance WHERE date >= ? AND date <= ? ORDER BY date DESC, clock_in DESC",
-                    args: [`${academicYear}-04-01`, `${parseInt(academicYear) + 1}-03-31`]
+                    args: [currentYear.start_date, currentYear.end_date]
                 });
                 setAttendance(res.rows as Record<string, unknown>[]);
             } else if (activeTab === "staff") {
@@ -79,7 +94,9 @@ const Admin = () => {
             console.error(err);
             toast.error("Failed to fetch data");
         }
-    }, [activeTab, academicYear]);
+    }, [activeTab, yearId, academicYears]);
+
+    useEffect(() => { fetchYears(); }, [fetchYears]);
 
     useEffect(() => {
         if (user) {
@@ -285,14 +302,13 @@ const Admin = () => {
                             <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-4">
                                 <div>
                                     <CardTitle>Attendance Log</CardTitle>
-                                    <CardDescription>Records of clock-ins and outs for {academicYear}-{parseInt(academicYear) + 1}.</CardDescription>
+                                    <CardDescription>Records of clock-ins and outs for {academicYears.find(y => y.id.toString() === yearId)?.name || "Selected Period"}</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <select className="border rounded-md px-3 py-1.5 text-sm" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
-                                        <option value="2026">2026-2027</option>
-                                        <option value="2025">2025-2026</option>
-                                        <option value="2024">2024-2025</option>
-                                        <option value="2023">2023-2024</option>
+                                    <select className="border rounded-md px-3 py-1.5 text-sm" value={yearId} onChange={e => setYearId(e.target.value)}>
+                                        {academicYears.map(y => (
+                                            <option key={y.id} value={y.id.toString()}>{y.name}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </CardHeader>
@@ -336,14 +352,13 @@ const Admin = () => {
                             <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-4">
                                 <div>
                                     <CardTitle>Admission Pipeline</CardTitle>
-                                    <CardDescription>Two-step approval: Principal (Review) → Admin (Confirm) for {academicYear}-{parseInt(academicYear) + 1}</CardDescription>
+                                    <CardDescription>Two-step approval: Principal (Review) → Admin (Confirm) for {academicYears.find(y => y.id.toString() === yearId)?.name || "Selected Period"}</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <select className="border rounded-md px-3 py-1.5 text-sm" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
-                                        <option value="2026">2026-2027</option>
-                                        <option value="2025">2025-2026</option>
-                                        <option value="2024">2024-2025</option>
-                                        <option value="2023">2023-2024</option>
+                                    <select className="border rounded-md px-3 py-1.5 text-sm" value={yearId} onChange={e => setYearId(e.target.value)}>
+                                        {academicYears.map(y => (
+                                            <option key={y.id} value={y.id.toString()}>{y.name}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </CardHeader>

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     ShieldCheck, Building2, Users, BarChart3, GraduationCap, LogOut,
     Plus, Pencil, Trash2, School, Phone, Mail, MapPin, UserCog,
-    TrendingUp, IndianRupee, Receipt, Briefcase, Sun, MessageSquare
+    TrendingUp, IndianRupee, Receipt, Briefcase, Sun, MessageSquare, Settings as SettingsIcon, ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -45,6 +45,15 @@ interface UserRow {
     school_id: number | null;
 }
 
+interface AcademicYearRow {
+    id: number;
+    name: string;
+    start_date: string;
+    end_date: string;
+    type: 'normal' | 'summer_camp';
+    is_active: number;
+}
+
 interface Stats {
     schools: number;
     users: number;
@@ -56,11 +65,9 @@ interface Stats {
 const SuperAdmin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     
-    const [academicYear, setAcademicYear] = useState(() => {
-        const today = new Date();
-        return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
-    });
+    const [academicYear, setAcademicYear] = useState("");
 
     // Data
     const [schools, setSchools] = useState<School[]>([]);
@@ -73,6 +80,9 @@ const SuperAdmin = () => {
     const [isUserOpen, setIsUserOpen] = useState(false);
     const [editSchool, setEditSchool] = useState<School | null>(null);
     const [editUser, setEditUser] = useState<UserRow | null>(null);
+    const [academicYears, setAcademicYears] = useState<AcademicYearRow[]>([]);
+    const [isYearOpen, setIsYearOpen] = useState(false);
+    const [editYear, setEditYear] = useState<AcademicYearRow | null>(null);
 
     const fetchData = useCallback(async () => {
         try {
@@ -84,9 +94,22 @@ const SuperAdmin = () => {
                 const res = await db.execute("SELECT id,email,name,role,school_id FROM users ORDER BY role,name");
                 setUsers(res.rows as unknown as UserRow[]);
             }
+            if (activeTab === "settings" || activeTab === "overview") {
+                const res = await db.execute("SELECT * FROM academic_years ORDER BY start_date DESC");
+                const years = res.rows as unknown as AcademicYearRow[];
+                setAcademicYears(years);
+                if (!academicYear) {
+                    const active = years.find(y => y.is_active === 1 && y.type === 'normal');
+                    if (active) setAcademicYear(active.id.toString());
+                    else if (years.length > 0) setAcademicYear(years[0].id.toString());
+                }
+            }
             if (activeTab === "overview") {
-                const startDate = `${academicYear}-04-01`;
-                const endDate = `${parseInt(academicYear) + 1}-03-31 23:59:59`;
+                const currentYear = academicYears.find(y => y.id.toString() === academicYear);
+                if (!currentYear) return;
+
+                const startDate = currentYear.start_date;
+                const endDate = currentYear.end_date + " 23:59:59";
                 const [sc, us, ap] = await Promise.all([
                     db.execute("SELECT COUNT(*) as c FROM schools"),
                     db.execute("SELECT COUNT(*) as c FROM users"),
@@ -106,7 +129,7 @@ const SuperAdmin = () => {
             console.error(err);
             toast.error("Failed to load data");
         }
-    }, [activeTab, academicYear]);
+    }, [activeTab, academicYear, academicYears]);
 
     useEffect(() => {
         if (user?.role === 'super_admin') fetchData();
@@ -191,6 +214,52 @@ const SuperAdmin = () => {
         } catch { toast.error("Failed"); }
     };
 
+    const handleSaveYear = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        const name = fd.get('name') as string;
+        const start = fd.get('start_date') as string;
+        const end = fd.get('end_date') as string;
+        const type = fd.get('type') as string;
+        const is_active = fd.get('is_active') === 'on' ? 1 : 0;
+
+        try {
+            if (is_active === 1) {
+                // Deactivate others of same type
+                await db.execute({ sql: "UPDATE academic_years SET is_active=0 WHERE type=?", args: [type] });
+            }
+
+            if (editYear) {
+                await db.execute({
+                    sql: "UPDATE academic_years SET name=?, start_date=?, end_date=?, type=?, is_active=? WHERE id=?",
+                    args: [name, start, end, type, is_active, editYear.id]
+                });
+                toast.success("Academic year updated");
+            } else {
+                await db.execute({
+                    sql: "INSERT INTO academic_years (name, start_date, end_date, type, is_active) VALUES (?, ?, ?, ?, ?)",
+                    args: [name, start, end, type, is_active]
+                });
+                toast.success("Academic year created");
+            }
+            setIsYearOpen(false);
+            setEditYear(null);
+            fetchData();
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to save academic year");
+        }
+    };
+
+    const handleDeleteYear = async (id: number) => {
+        if (!confirm("Delete this academic year?")) return;
+        try {
+            await db.execute({ sql: "DELETE FROM academic_years WHERE id=?", args: [id] });
+            toast.success("Deleted");
+            fetchData();
+        } catch { toast.error("Failed"); }
+    };
+
     const roleColor = (role: string) => {
         switch (role) {
             case 'super_admin': return 'bg-violet-100 text-violet-700';
@@ -227,16 +296,32 @@ const SuperAdmin = () => {
                             </span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm text-white/70 hidden md:block">{user.name}</span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={logout}
-                            className="text-white/70 hover:text-white hover:bg-white/10 gap-2"
+                    <div className="relative">
+                        <button 
+                            onClick={() => setIsProfileOpen(!isProfileOpen)}
+                            className="flex items-center gap-2 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                         >
-                            <LogOut className="h-4 w-4" /> Logout
-                        </Button>
+                            <span className="text-sm text-white/90 hidden md:block">{user.name}</span>
+                            <ChevronDown className={`h-4 w-4 text-white/50 transition-transform ${isProfileOpen ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {isProfileOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+                                <button 
+                                    onClick={() => { setActiveTab("settings"); setIsProfileOpen(false); }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/10 transition-colors text-left"
+                                >
+                                    <SettingsIcon className="h-4 w-4" /> Settings
+                                </button>
+                                <div className="h-px bg-white/10 my-1"></div>
+                                <button 
+                                    onClick={logout}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
+                                >
+                                    <LogOut className="h-4 w-4" /> Logout
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </header>
@@ -265,20 +350,15 @@ const SuperAdmin = () => {
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-2xl font-bold mb-1">Network Overview</h2>
-                                <p className="text-white/50 text-sm">Combined stats across all schools for {academicYear}-{parseInt(academicYear) + 1}</p>
+                                <p className="text-white/50 text-sm">Combined stats across all schools</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Select value={academicYear} onValueChange={setAcademicYear}>
-                                    <SelectTrigger className="w-40 bg-white/10 border-white/20 text-white">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="2026">2026-2027</SelectItem>
-                                        <SelectItem value="2025">2025-2026</SelectItem>
-                                        <SelectItem value="2024">2024-2025</SelectItem>
-                                        <SelectItem value="2023">2023-2024</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <span className="text-sm text-white/50">Academic Year:</span>
+                                <select className="bg-white/10 border border-white/20 text-white rounded-md px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-violet-500" value={academicYear} onChange={e => setAcademicYear(e.target.value)}>
+                                    {academicYears.filter(y => y.type === 'normal').map(y => (
+                                        <option key={y.id} value={y.id.toString()} className="text-slate-900">{y.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
@@ -664,6 +744,117 @@ const SuperAdmin = () => {
                                     <TabsContent value="r-enquiries"><EnquiriesTab /></TabsContent>
                                 </div>
                             </Tabs>
+                        </div>
+                    </TabsContent>
+
+                    {/* ══════════════════ SETTINGS ══════════════════ */}
+                    <TabsContent value="settings" className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-2xl font-bold">Academic Years</h2>
+                                <p className="text-white/50 text-sm">Configure normal and summer camp cycles</p>
+                            </div>
+                            <Dialog open={isYearOpen} onOpenChange={(o) => { setIsYearOpen(o); if (!o) setEditYear(null); }}>
+                                <DialogTrigger asChild>
+                                    <Button className="bg-violet-600 hover:bg-violet-700 gap-2">
+                                        <Plus className="h-4 w-4" /> New Cycle
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>{editYear ? "Edit Cycle" : "Create New Cycle"}</DialogTitle>
+                                    </DialogHeader>
+                                    <form onSubmit={handleSaveYear} className="space-y-4 pt-2 text-white">
+                                        <div className="space-y-2">
+                                            <Label>Cycle Name *</Label>
+                                            <Input name="name" defaultValue={editYear?.name} placeholder="e.g. 2026-2027" required className="text-slate-900" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Start Date *</Label>
+                                                <Input name="start_date" type="date" defaultValue={editYear?.start_date} required className="text-slate-900" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>End Date *</Label>
+                                                <Input name="end_date" type="date" defaultValue={editYear?.end_date} required className="text-slate-900" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Type *</Label>
+                                            <Select name="type" defaultValue={editYear?.type ?? "normal"}>
+                                                <SelectTrigger className="text-slate-900"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="normal">Normal Academic Year</SelectItem>
+                                                    <SelectItem value="summer_camp">Summer Camp</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="flex items-center space-x-2 py-2">
+                                            <input type="checkbox" name="is_active" id="is_active" defaultChecked={editYear?.is_active === 1} className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
+                                            <Label htmlFor="is_active">Set as Active Cycle</Label>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button type="submit" className="w-full bg-violet-600 hover:bg-violet-700">
+                                                {editYear ? "Save Changes" : "Create Cycle"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                            {academicYears.map(year => (
+                                <Card key={year.id} className="bg-white/5 border border-white/10 text-white group shadow-lg hover:border-white/20 transition-all">
+                                    <CardHeader className="pb-2">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`h-11 w-11 rounded-xl flex items-center justify-center ${year.type === 'summer_camp' ? 'bg-orange-500/20 text-orange-400' : 'bg-violet-500/20 text-violet-400'}`}>
+                                                    {year.type === 'summer_camp' ? <Sun className="h-5 w-5" /> : <GraduationCap className="h-5 w-5" />}
+                                                </div>
+                                                <div>
+                                                    <CardTitle className="text-white text-base flex items-center gap-2">
+                                                        {year.name}
+                                                        {year.is_active === 1 && <span className="text-[10px] bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full uppercase font-bold">Active</span>}
+                                                    </CardTitle>
+                                                    <CardDescription className="text-white/40 text-xs">
+                                                        {year.type === 'summer_camp' ? 'Summer Camp' : 'Normal Cycle'}
+                                                    </CardDescription>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-white/50 hover:text-white hover:bg-white/10"
+                                                    onClick={() => { setEditYear(year); setIsYearOpen(true); }}>
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                                    onClick={() => handleDeleteYear(year.id)}>
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="text-sm text-white/60">
+                                        <div className="flex items-center gap-4 bg-white/5 p-3 rounded-lg border border-white/5">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] uppercase text-white/30 font-semibold tracking-wider">Start Date</span>
+                                                <span className="font-mono">{year.start_date}</span>
+                                            </div>
+                                            <div className="h-8 w-px bg-white/10" />
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] uppercase text-white/30 font-semibold tracking-wider">End Date</span>
+                                                <span className="font-mono">{year.end_date}</span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                            {academicYears.length === 0 && (
+                                <div className="col-span-2 rounded-xl border border-dashed border-white/10 p-12 text-center text-white/30">
+                                    <GraduationCap className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                                    <p>No academic cycles configured yet.</p>
+                                </div>
+                            )}
                         </div>
                     </TabsContent>
                 </Tabs>

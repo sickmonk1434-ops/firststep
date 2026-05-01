@@ -25,34 +25,48 @@ const TYPES = [
     "Interlocking Mats (Rs. 90*225)", "Salaries", "Rent", "Utilities", "Other"
 ];
 
-const getCurrentAcademicYear = () => {
-    const today = new Date();
-    return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
-};
+// getCurrentAcademicYear is deprecated
 
 export default function ExpenditureTab() {
     const [rows, setRows] = useState<ExpenditureRow[]>([]);
-    const [year, setYear] = useState(getCurrentAcademicYear());
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const [yearId, setYearId] = useState<string>("");
     const [search, setSearch] = useState("");
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editRow, setEditRow] = useState<ExpenditureRow | null>(null);
     const [form, setForm] = useState({ date: "", category: "", description: "", type: "", amount: "", mode: "Cash", remark: "", estimation: "" });
     const [loading, setLoading] = useState(true);
 
+    const fetchYears = useCallback(async () => {
+        try {
+            const res = await db.execute("SELECT * FROM academic_years WHERE type='normal' ORDER BY start_date DESC");
+            setAcademicYears(res.rows);
+            const active = res.rows.find((r: any) => r.is_active === 1);
+            if (active && active.id !== null && active.id !== undefined) {
+                setYearId(active.id.toString());
+            } else if (res.rows.length > 0 && res.rows[0].id !== null && res.rows[0].id !== undefined) {
+                setYearId(res.rows[0].id.toString());
+            }
+        } catch { toast.error("Failed to load academic cycles"); }
+    }, []);
+
     const fetchData = useCallback(async () => {
+        if (!yearId) return;
         setLoading(true);
         try {
-            const startDate = `${year}-04-01`;
-            const endDate = `${parseInt(year) + 1}-03-31`;
+            const currentYear = academicYears.find(y => y.id.toString() === yearId);
+            if (!currentYear) return;
+
             const res = await db.execute({
                 sql: "SELECT * FROM expenditure WHERE date >= ? AND date <= ? ORDER BY date DESC, id DESC LIMIT 500",
-                args: [startDate, endDate]
+                args: [currentYear.start_date, currentYear.end_date]
             });
             setRows(res.rows as unknown as ExpenditureRow[]);
         } catch { toast.error("Failed to load expenditure data"); }
         finally { setLoading(false); }
-    }, [year]);
+    }, [yearId, academicYears]);
 
+    useEffect(() => { fetchYears(); }, [fetchYears]);
     useEffect(() => { fetchData(); }, [fetchData]);
 
     const filtered = rows.filter(r =>
@@ -140,14 +154,13 @@ export default function ExpenditureTab() {
             <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-4">
                 <div>
                     <CardTitle>Expenditure</CardTitle>
-                    <CardDescription>All school expense records for {year}-{parseInt(year) + 1}</CardDescription>
+                    <CardDescription>All school expense records for {academicYears.find(y => y.id.toString() === yearId)?.name || "Selected Period"}</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                    <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={e => setYear(e.target.value)}>
-                        <option value="2026">2026-2027</option>
-                        <option value="2025">2025-2026</option>
-                        <option value="2024">2024-2025</option>
-                        <option value="2023">2023-2024</option>
+                    <select className="border rounded-md px-3 py-1.5 text-sm" value={yearId} onChange={e => setYearId(e.target.value)}>
+                        {academicYears.map(y => (
+                            <option key={y.id} value={y.id.toString()}>{y.name}</option>
+                        ))}
                     </select>
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild>

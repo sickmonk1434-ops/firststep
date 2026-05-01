@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import {
     TrendingUp, TrendingDown, Users, GraduationCap, IndianRupee,
-    Briefcase, Sun, BarChart3
+    Briefcase, BarChart3
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,60 +48,80 @@ function KpiCard({ icon: Icon, label, value, sub, color }: {
     );
 }
 
-const getCurrentAcademicYear = () => {
-    const today = new Date();
-    return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
-};
+// getCurrentAcademicYear is deprecated in favor of academic_years table
 
 export default function ReportsTab() {
     const [data, setData] = useState<SummaryData | null>(null);
     const [expByCategory, setExpByCategory] = useState<ExpenditureByCategory[]>([]);
     const [expByMode, setExpByMode] = useState<ExpenditureByMode[]>([]);
     const [monthlyExp, setMonthlyExp] = useState<MonthlyExpenditure[]>([]);
-    const [year, setYear] = useState(getCurrentAcademicYear());
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const [cycleType, setCycleType] = useState<'normal' | 'summer_camp'>('normal');
+    const [yearId, setYearId] = useState<string>("");
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const fetchYears = async () => {
+            try {
+                const res = await db.execute({
+                    sql: "SELECT * FROM academic_years WHERE type = ? ORDER BY start_date DESC",
+                    args: [cycleType]
+                });
+                setAcademicYears(res.rows);
+                const active = res.rows.find((r: any) => r.is_active === 1);
+                if (active && active.id !== null && active.id !== undefined) {
+                    setYearId(active.id.toString());
+                } else if (res.rows.length > 0 && res.rows[0].id !== null && res.rows[0].id !== undefined) {
+                    setYearId(res.rows[0].id.toString());
+                }
+            } catch { toast.error("Failed to load cycles"); }
+        };
+        fetchYears();
+    }, [cycleType]);
+
+    useEffect(() => {
         const load = async () => {
+            if (!yearId) return;
             setLoading(true);
             try {
-                const startDate = `${year}-04-01`;
-                const endDate = `${parseInt(year) + 1}-03-31 23:59:59`;
-                const currentYearNum = parseInt(year);
-                const prevYearNum = currentYearNum - 1;
+                const currentYear = academicYears.find(y => y.id.toString() === yearId);
+                if (!currentYear) return;
 
+                const startDate = currentYear.start_date;
+                const endDate = currentYear.end_date + " 23:59:59";
+                
+                // For comparison, we'll just show 0 for now as 'previous' is complex with dynamic dates
                 const [
-                    expRes, adm25Res, adm24Res, sc25Res, sc24Res,
-                    empRes, invRes, salRes, feeRes, enqRes, expCatRes, expModeRes, monthRes
+                    expRes, admRes, scRes,
+                    empRes, invRes, salRes, enqRes, expCatRes, expModeRes, monthRes
                 ] = await Promise.all([
                     db.execute({ sql: "SELECT COALESCE(SUM(amount),0) as total, COALESCE(SUM(estimation),0) as est FROM expenditure WHERE date >= ? AND date <= ?", args: [startDate, endDate] }),
-                    db.execute({ sql: "SELECT COUNT(*) as cnt, SUM(CASE WHEN status='Active' THEN 1 ELSE 0 END) as active FROM admissions WHERE year=?", args: [currentYearNum] }),
-                    db.execute({ sql: "SELECT COUNT(*) as cnt FROM admissions WHERE year=?", args: [prevYearNum] }),
-                    db.execute({ sql: "SELECT COUNT(*) as cnt FROM summer_camp WHERE year=?", args: [currentYearNum] }),
-                    db.execute({ sql: "SELECT COUNT(*) as cnt FROM summer_camp WHERE year=?", args: [prevYearNum] }),
+                    db.execute({ sql: "SELECT COUNT(*) as cnt, SUM(CASE WHEN status='Active' THEN 1 ELSE 0 END) as active, COALESCE(SUM(total_paid),0) as collected, COALESCE(SUM(fee_balance),0) as balance FROM admissions WHERE join_date >= ? AND join_date <= ?", args: [startDate, endDate] }),
+                    db.execute({ sql: "SELECT COUNT(*) as cnt, COALESCE(SUM(paid),0) as collected, COALESCE(SUM(fee_balance),0) as balance FROM summer_camp WHERE joining_date >= ? AND joining_date <= ?", args: [startDate, endDate] }),
                     db.execute("SELECT COUNT(*) as cnt, SUM(CASE WHEN status='Active' THEN 1 ELSE 0 END) as active FROM employees"),
                     db.execute({ sql: "SELECT COALESCE(SUM(amount),0) as total FROM investments WHERE date >= ? AND date <= ?", args: [startDate, endDate] }),
                     db.execute("SELECT COALESCE(SUM(salary_paid),0) as total FROM salaries WHERE status='Paid'"),
-                    db.execute({ sql: "SELECT COALESCE(SUM(total_paid),0) as collected, COALESCE(SUM(fee_balance),0) as balance FROM admissions WHERE year=?", args: [currentYearNum] }),
                     db.execute({ sql: "SELECT COUNT(*) as cnt FROM enquiries WHERE timestamp >= ? AND timestamp <= ?", args: [startDate, endDate] }),
                     db.execute({ sql: "SELECT category, COALESCE(SUM(amount),0) as total FROM expenditure WHERE category != '' AND date >= ? AND date <= ? GROUP BY category ORDER BY total DESC LIMIT 8", args: [startDate, endDate] }),
                     db.execute({ sql: "SELECT mode, COALESCE(SUM(amount),0) as total FROM expenditure WHERE mode != '' AND date >= ? AND date <= ? GROUP BY mode", args: [startDate, endDate] }),
                     db.execute({ sql: `SELECT substr(date,1,7) as month, SUM(amount) as total FROM expenditure WHERE date != '' AND date >= ? AND date <= ? GROUP BY month ORDER BY month DESC LIMIT 12`, args: [startDate, endDate] })
                 ]);
 
+                const isSC = cycleType === 'summer_camp';
+
                 setData({
                     totalExpenditure: Number((expRes.rows[0] as Record<string, unknown>).total) || 0,
-                    admissions: Number((adm25Res.rows[0] as Record<string, unknown>).cnt) || 0,
-                    admissionsActive: Number((adm25Res.rows[0] as Record<string, unknown>).active) || 0,
-                    admissionsPrev: Number((adm24Res.rows[0] as Record<string, unknown>).cnt) || 0,
-                    summerCamp: Number((sc25Res.rows[0] as Record<string, unknown>).cnt) || 0,
-                    summerCampPrev: Number((sc24Res.rows[0] as Record<string, unknown>).cnt) || 0,
+                    admissions: isSC ? 0 : Number((admRes.rows[0] as Record<string, unknown>).cnt) || 0,
+                    admissionsActive: isSC ? 0 : Number((admRes.rows[0] as Record<string, unknown>).active) || 0,
+                    admissionsPrev: 0,
+                    summerCamp: isSC ? Number((scRes.rows[0] as Record<string, unknown>).cnt) || 0 : 0,
+                    summerCampPrev: 0,
                     activeEmployees: Number((empRes.rows[0] as Record<string, unknown>).active) || 0,
                     totalEmployees: Number((empRes.rows[0] as Record<string, unknown>).cnt) || 0,
                     totalInvested: Number((invRes.rows[0] as Record<string, unknown>).total) || 0,
                     totalSalaryPaid: Number((salRes.rows[0] as Record<string, unknown>).total) || 0,
-                    totalFeeCollected: Number((feeRes.rows[0] as Record<string, unknown>).collected) || 0,
-                    totalFeeBalance: Number((feeRes.rows[0] as Record<string, unknown>).balance) || 0,
+                    totalFeeCollected: isSC ? Number((scRes.rows[0] as Record<string, unknown>).collected) || 0 : Number((admRes.rows[0] as Record<string, unknown>).collected) || 0,
+                    totalFeeBalance: isSC ? Number((scRes.rows[0] as Record<string, unknown>).balance) || 0 : Number((admRes.rows[0] as Record<string, unknown>).balance) || 0,
                     totalFeeCollectedPrev: 0,
                     enquiryCount: Number((enqRes.rows[0] as Record<string, unknown>).cnt) || 0,
                     totalEstimation: Number((expRes.rows[0] as Record<string, unknown>).est) || 0,
@@ -113,7 +133,7 @@ export default function ReportsTab() {
             finally { setLoading(false); }
         };
         load();
-    }, [year]);
+    }, [yearId, academicYears, cycleType]);
 
     if (loading) return <div className="py-20 text-center text-muted-foreground animate-pulse">Loading reports…</div>;
     if (!data) return null;
@@ -124,19 +144,27 @@ export default function ReportsTab() {
     return (
         <div className="space-y-6">
             {/* Title */}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                     <BarChart3 className="h-6 w-6 text-primary" />
                     <h2 className="text-2xl font-bold">School Reports Overview</h2>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Academic Year:</span>
-                    <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={e => setYear(e.target.value)}>
-                        <option value="2026">2026-2027</option>
-                        <option value="2025">2025-2026</option>
-                        <option value="2024">2024-2025</option>
-                        <option value="2023">2023-2024</option>
-                    </select>
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-muted-foreground">Type:</span>
+                        <select className="border rounded-md px-3 py-1.5 text-sm" value={cycleType} onChange={e => setCycleType(e.target.value as any)}>
+                            <option value="normal">Normal Cycle</option>
+                            <option value="summer_camp">Summer Camp</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-muted-foreground">Cycle:</span>
+                        <select className="border rounded-md px-3 py-1.5 text-sm" value={yearId} onChange={e => setYearId(e.target.value)}>
+                            {academicYears.map(y => (
+                                <option key={y.id} value={y.id.toString()}>{y.name}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -145,15 +173,10 @@ export default function ReportsTab() {
                 <KpiCard icon={IndianRupee} label="Total Expenditure" value={`₹${data.totalExpenditure.toLocaleString("en-IN")}`} sub="Selected Year" color="border-red-500" />
                 <KpiCard icon={IndianRupee} label="Total Invested" value={`₹${data.totalInvested.toLocaleString("en-IN")}`} sub="Selected Year" color="border-green-500" />
                 <KpiCard icon={IndianRupee} label="Salary Paid" value={`₹${data.totalSalaryPaid.toLocaleString("en-IN")}`} sub="All time" color="border-blue-500" />
-                <KpiCard icon={IndianRupee} label={`Fee Collected (${year})`} value={`₹${data.totalFeeCollected.toLocaleString("en-IN")}`} sub={`Balance: ₹${data.totalFeeBalance.toLocaleString("en-IN")}`} color="border-purple-500" />
+                <KpiCard icon={IndianRupee} label={`Fee Collected`} value={`₹${data.totalFeeCollected.toLocaleString("en-IN")}`} sub={`Balance: ₹${data.totalFeeBalance.toLocaleString("en-IN")}`} color="border-purple-500" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={GraduationCap} label={`Admissions ${year}`} value={String(data.admissions)} sub={`${data.admissionsActive} Active`} color="border-primary" />
-                <KpiCard icon={GraduationCap} label={`Admissions ${parseInt(year) - 1}`} value={String(data.admissionsPrev)} color="border-indigo-500" />
-                <KpiCard icon={Sun} label={`Summer Camp ${year}`} value={String(data.summerCamp)} color="border-orange-500" />
-                <KpiCard icon={Sun} label={`Summer Camp ${parseInt(year) - 1}`} value={String(data.summerCampPrev)} color="border-amber-500" />
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <KpiCard icon={GraduationCap} label={cycleType === 'summer_camp' ? "SC Enrollments" : "Admissions"} value={String(cycleType === 'summer_camp' ? data.summerCamp : data.admissions)} sub={cycleType === 'normal' ? `${data.admissionsActive} Active` : undefined} color="border-primary" />
                 <KpiCard icon={Users} label="Active Employees" value={String(data.activeEmployees)} sub={`of ${data.totalEmployees} total`} color="border-teal-500" />
                 <KpiCard icon={Briefcase} label="Enquiries" value={String(data.enquiryCount)} color="border-cyan-500" />
             </div>
