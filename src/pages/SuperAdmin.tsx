@@ -336,7 +336,7 @@ const SuperAdmin = () => {
             </header>
 
             <div className="container mx-auto px-4 py-8">
-                <Tabs defaultValue="overview" onValueChange={setActiveTab} className="space-y-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                     <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1 flex-wrap">
                         {[
                             { value: "overview", label: "Overview", icon: <BarChart3 className="h-4 w-4" /> },
