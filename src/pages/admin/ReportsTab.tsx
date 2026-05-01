@@ -48,12 +48,17 @@ function KpiCard({ icon: Icon, label, value, sub, color }: {
     );
 }
 
+const getCurrentAcademicYear = () => {
+    const today = new Date();
+    return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
+};
+
 export default function ReportsTab() {
     const [data, setData] = useState<SummaryData | null>(null);
     const [expByCategory, setExpByCategory] = useState<ExpenditureByCategory[]>([]);
     const [expByMode, setExpByMode] = useState<ExpenditureByMode[]>([]);
     const [monthlyExp, setMonthlyExp] = useState<MonthlyExpenditure[]>([]);
-    const [year, setYear] = useState("2025");
+    const [year, setYear] = useState(getCurrentAcademicYear());
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -127,6 +132,7 @@ export default function ReportsTab() {
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-muted-foreground">Academic Year:</span>
                     <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={e => setYear(e.target.value)}>
+                        <option value="2026">2026-2027</option>
                         <option value="2025">2025-2026</option>
                         <option value="2024">2024-2025</option>
                         <option value="2023">2023-2024</option>

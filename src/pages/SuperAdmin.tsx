@@ -56,7 +56,9 @@ interface Stats {
 const SuperAdmin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("overview");
-    const academicYear = "2025";
+    
+    const today = new Date();
+    const academicYear = today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
 
     // Data
     const [schools, setSchools] = useState<School[]>([]);

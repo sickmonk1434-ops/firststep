@@ -26,16 +26,21 @@ interface SummerCampRow {
     year: number;
 }
 
+const getCurrentAcademicYear = () => {
+    const today = new Date();
+    return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
+};
+
 const emptyForm = () => ({
     student_id: "", status: "Active", student_name: "", parent_name: "", phone: "", email: "",
     joining_date: new Date().toISOString().split("T")[0], end_date: "",
     admission_type: "Summer Camp", payment_period: "Monthly",
-    fee_registered: "", paid: "", fee_balance: "", year: "2025"
+    fee_registered: "", paid: "", fee_balance: "", year: getCurrentAcademicYear()
 });
 
 export default function SummerCampTab() {
     const [rows, setRows] = useState<SummerCampRow[]>([]);
-    const [year, setYear] = useState("2025");
+    const [year, setYear] = useState(getCurrentAcademicYear());
     const [search, setSearch] = useState("");
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editRow, setEditRow] = useState<SummerCampRow | null>(null);
@@ -82,7 +87,7 @@ export default function SummerCampTab() {
         const args = [
             form.student_id, form.status, form.student_name, form.parent_name, form.phone, form.email,
             form.joining_date, form.end_date, form.admission_type, form.payment_period,
-            parseFloat(form.fee_registered) || 0, parseFloat(form.paid) || 0, parseFloat(form.fee_balance) || 0, parseInt(form.year) || 2025
+            parseFloat(form.fee_registered) || 0, parseFloat(form.paid) || 0, parseFloat(form.fee_balance) || 0, parseInt(form.year) || parseInt(getCurrentAcademicYear())
         ];
         try {
             if (editRow) {
@@ -108,7 +113,7 @@ export default function SummerCampTab() {
                 <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-S000001" /></div>
                 <div><Label>Year</Label>
                     <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.year} onChange={f("year")}>
-                        <option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
+                        <option value="2026">2026-2027</option><option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
                     </select>
                 </div>
             </div>
@@ -154,7 +159,7 @@ export default function SummerCampTab() {
                 </div>
                 <div className="flex items-center gap-2">
                     <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={e => setYear(e.target.value)}>
-                        <option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
+                        <option value="2026">2026-2027</option><option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
                     </select>
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild><Button size="sm" onClick={() => { setForm({ ...emptyForm(), year }); setIsAddOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Student</Button></DialogTrigger>

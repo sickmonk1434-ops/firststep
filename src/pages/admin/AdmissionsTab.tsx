@@ -36,17 +36,22 @@ interface AdmissionRow {
 const CLASSES = ["Play Group", "Nursery", "LKG", "UKG", "nursery"];
 const STATUSES = ["Active", "Closed"];
 
+const getCurrentAcademicYear = () => {
+    const today = new Date();
+    return today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
+};
+
 const emptyForm = () => ({
     student_id: "", class: "Nursery", status: "Active",
     student_name: "", parent_name: "", primary_phone: "", alternate_phone: "", email: "",
     join_date: new Date().toISOString().split("T")[0], end_date: "",
     fee_registered: "", book_fee: "", admission_fee: "", term1: "", term2: "", term3: "", others: "",
-    total_paid: "", fee_balance: "", followup: "", year: "2025"
+    total_paid: "", fee_balance: "", followup: "", year: getCurrentAcademicYear()
 });
 
 export default function AdmissionsTab() {
     const [rows, setRows] = useState<AdmissionRow[]>([]);
-    const [year, setYear] = useState<string>("2025");
+    const [year, setYear] = useState<string>(getCurrentAcademicYear());
     const [search, setSearch] = useState("");
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editRow, setEditRow] = useState<AdmissionRow | null>(null);
@@ -101,7 +106,7 @@ export default function AdmissionsTab() {
             parseFloat(form.fee_registered) || 0, parseFloat(form.book_fee) || 0, parseFloat(form.admission_fee) || 0,
             parseFloat(form.term1) || 0, parseFloat(form.term2) || 0, parseFloat(form.term3) || 0,
             parseFloat(form.others) || 0, parseFloat(form.total_paid) || 0, parseFloat(form.fee_balance) || 0,
-            form.followup, parseInt(form.year) || 2025
+            form.followup, parseInt(form.year) || parseInt(getCurrentAcademicYear())
         ];
         try {
             if (editRow) {
@@ -133,7 +138,10 @@ export default function AdmissionsTab() {
                 <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-A000001" /></div>
                 <div><Label>Year</Label>
                     <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.year} onChange={f("year")}>
-                        <option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
+                        <option value="2026">2026-2027</option>
+                        <option value="2025">2025-2026</option>
+                        <option value="2024">2024-2025</option>
+                        <option value="2023">2023-2024</option>
                     </select>
                 </div>
             </div>
@@ -185,7 +193,10 @@ export default function AdmissionsTab() {
                 </div>
                 <div className="flex items-center gap-2">
                     <select className="border rounded-md px-3 py-1.5 text-sm" value={year} onChange={e => setYear(e.target.value)}>
-                        <option value="2025">2025-2026</option><option value="2024">2024-2025</option><option value="2023">2023-2024</option>
+                        <option value="2026">2026-2027</option>
+                        <option value="2025">2025-2026</option>
+                        <option value="2024">2024-2025</option>
+                        <option value="2023">2023-2024</option>
                     </select>
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                         <DialogTrigger asChild><Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Student</Button></DialogTrigger>

@@ -30,7 +30,9 @@ import EnquiriesTab from "./admin/EnquiriesTab";
 const Admin = () => {
     const { user, logout, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState("dashboard");
-    const academicYear = "2025";
+    
+    const today = new Date();
+    const academicYear = today.getMonth() >= 3 ? today.getFullYear().toString() : (today.getFullYear() - 1).toString();
 
     // Data states
     const [applications, setApplications] = useState<Record<string, unknown>[]>([]);
