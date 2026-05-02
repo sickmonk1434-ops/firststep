@@ -25,6 +25,14 @@ const TYPES = [
     "Interlocking Mats (Rs. 90*225)", "Salaries", "Rent", "Utilities", "Other"
 ];
 
+const CATEGORIES = [
+    "Setup", "Admission", "Marketing", "Salaries", "Rent", "Utilities",
+    "Maintenance", "Stationery", "Transport", "Events", "Food & Beverages",
+    "Furniture", "Technology", "Cleaning", "Miscellaneous", "Other"
+];
+
+const MODES = ["Cash", "Bank", "Online", "UPI", "Cheque"];
+
 // getCurrentAcademicYear is deprecated
 
 interface ExpenditureTabProps {
@@ -154,18 +162,27 @@ export default function ExpenditureTab({ userRole, userEmail }: ExpenditureTabPr
                 <div><Label>Date</Label><Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></div>
                 <div><Label>Amount (₹)</Label><Input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" /></div>
             </div>
-            <div><Label>Category</Label><Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Setup, Admission" /></div>
+            <div><Label>Category</Label>
+                <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                    <option value="">Select Category</option>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+            </div>
             <div><Label>Description</Label><Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Logo Designer" /></div>
             <div className="grid grid-cols-2 gap-3">
-                <div><Label>Mode</Label>
-                    <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.mode} onChange={e => setForm(f => ({ ...f, mode: e.target.value }))}>
-                        <option value="Cash">Cash</option>
-                        <option value="Bank">Bank</option>
-                        <option value="Online">Online</option>
+                <div><Label>Type</Label>
+                    <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
+                        <option value="">Select Type</option>
+                        {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
-                <div><Label>Estimation (₹)</Label><Input type="number" value={form.estimation} onChange={e => setForm(f => ({ ...f, estimation: e.target.value }))} placeholder="0" /></div>
+                <div><Label>Mode</Label>
+                    <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.mode} onChange={e => setForm(f => ({ ...f, mode: e.target.value }))}>
+                        {MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                </div>
             </div>
+            <div><Label>Estimation (₹)</Label><Input type="number" value={form.estimation} onChange={e => setForm(f => ({ ...f, estimation: e.target.value }))} placeholder="0" /></div>
             <div><Label>Remark</Label><Input value={form.remark} onChange={e => setForm(f => ({ ...f, remark: e.target.value }))} placeholder="Additional notes..." /></div>
         </div>
     );

@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import ReportsTab from "./admin/ReportsTab";
 import ExpenditureTab from "./admin/ExpenditureTab";
 import AdmissionsTab from "./admin/AdmissionsTab";
+import FeeDetailsTab from "./admin/FeeDetailsTab";
 import SalariesTab from "./admin/SalariesTab";
 import EmployeesTab from "./admin/EmployeesTab";
 import InvestmentTab from "./admin/InvestmentTab";
@@ -736,6 +737,7 @@ const SuperAdmin = () => {
                                         { v: "r-investment", label: "Investment", icon: <TrendingUp className="h-3.5 w-3.5" /> },
                                         { v: "r-summercamp", label: "Summer Camp", icon: <Sun className="h-3.5 w-3.5" /> },
                                         { v: "r-enquiries", label: "Enquiries", icon: <MessageSquare className="h-3.5 w-3.5" /> },
+                                        { v: "r-feedetails", label: "Fee Details", icon: <IndianRupee className="h-3.5 w-3.5" /> },
                                     ].map(t => (
                                         <TabsTrigger key={t.v} value={t.v} className="flex-1 min-w-fit gap-1 text-xs">
                                             {t.icon}{t.label}
@@ -751,6 +753,7 @@ const SuperAdmin = () => {
                                     <TabsContent value="r-investment"><InvestmentTab /></TabsContent>
                                     <TabsContent value="r-summercamp"><SummerCampTab /></TabsContent>
                                     <TabsContent value="r-enquiries"><EnquiriesTab /></TabsContent>
+                                    <TabsContent value="r-feedetails"><FeeDetailsTab /></TabsContent>
                                 </div>
                             </Tabs>
                         </div>
@@ -800,7 +803,7 @@ const SuperAdmin = () => {
                                         </div>
                                         <div className="flex items-center space-x-2 py-2">
                                             <input type="checkbox" name="is_active" id="is_active" defaultChecked={editYear?.is_active === 1} className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
-                                            <Label htmlFor="is_active">Set as Active Cycle</Label>
+                                            <Label htmlFor="is_active">Set as Active Cycle <span className="text-green-500 font-bold ml-1">ACTIVE</span></Label>
                                         </div>
                                         <DialogFooter>
                                             <Button type="submit" className="w-full bg-violet-600 hover:bg-violet-700">

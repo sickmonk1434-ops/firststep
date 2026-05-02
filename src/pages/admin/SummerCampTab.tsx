@@ -134,8 +134,12 @@ export default function SummerCampTab() {
         <div className="space-y-3 pt-2">
             <div className="grid grid-cols-2 gap-3">
                 <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-S000001" /></div>
-                <div><Label>Year (Auto)</Label>
-                    <Input value={academicYears.find(y => y.id.toString() === yearId)?.name || "N/A"} disabled />
+                <div><Label>Year</Label>
+                    <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.year} onChange={f("year")}>
+                        {academicYears.map(y => (
+                            <option key={y.id} value={y.id.toString()}>{y.name}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-3">

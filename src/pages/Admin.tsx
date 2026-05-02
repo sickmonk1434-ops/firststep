@@ -26,6 +26,7 @@ import EmployeesTab from "./admin/EmployeesTab";
 import InvestmentTab from "./admin/InvestmentTab";
 import SummerCampTab from "./admin/SummerCampTab";
 import EnquiriesTab from "./admin/EnquiriesTab";
+import FeeDetailsTab from "./admin/FeeDetailsTab";
 
 const Admin = () => {
     const { user, logout, loading: authLoading } = useAuth();
@@ -253,6 +254,9 @@ const Admin = () => {
                         )}
                         {(isAdmin || user.role === 'principal') && (
                             <TabsTrigger value="expenditure" className="flex-1 min-w-fit"><Receipt className="h-4 w-4 mr-1.5" />Expenditure</TabsTrigger>
+                        )}
+                        {(isAdmin || user.role === 'principal') && (
+                            <TabsTrigger value="fee-details" className="flex-1 min-w-fit"><IndianRupee className="h-4 w-4 mr-1.5" />Fee Details</TabsTrigger>
                         )}
                         {isAdmin && (
                             <>
@@ -530,6 +534,7 @@ const Admin = () => {
                     {/* ── New Excel-Powered Report Tabs (Admin Only) ── */}
                     <TabsContent value="reports"><ReportsTab /></TabsContent>
                     <TabsContent value="expenditure"><ExpenditureTab userRole={user.role} userEmail={user.email} /></TabsContent>
+                    <TabsContent value="fee-details"><FeeDetailsTab /></TabsContent>
                     <TabsContent value="admissions-data"><AdmissionsTab /></TabsContent>
                     <TabsContent value="salaries"><SalariesTab /></TabsContent>
                     <TabsContent value="employees"><EmployeesTab /></TabsContent>
