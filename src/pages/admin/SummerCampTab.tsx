@@ -93,6 +93,26 @@ export default function SummerCampTab() {
     const totalPaid = filtered.reduce((s, r) => s + (r.paid || 0), 0);
     const totalBalance = filtered.reduce((s, r) => s + (r.fee_balance || 0), 0);
 
+    const generateNextStudentId = async () => {
+        try {
+            const res = await db.execute("SELECT student_id FROM summer_camp WHERE student_id LIKE 'TFS-BN-S%' ORDER BY student_id DESC LIMIT 1");
+            if (res.rows.length > 0) {
+                const lastId = String((res.rows[0] as any).student_id);
+                const numPart = parseInt(lastId.replace('TFS-BN-S', '')) || 0;
+                return `TFS-BN-S${String(numPart + 1).padStart(6, '0')}`;
+            }
+            return 'TFS-BN-S000001';
+        } catch {
+            return 'TFS-BN-S000001';
+        }
+    };
+
+    const openAdd = async () => {
+        const nextId = await generateNextStudentId();
+        setForm({ ...emptyForm(), student_id: nextId, year: yearId });
+        setIsAddOpen(true);
+    };
+
     const openEdit = (r: SummerCampRow) => {
         setEditRow(r);
         setForm({
@@ -133,7 +153,7 @@ export default function SummerCampTab() {
     const FormFields = () => (
         <div className="space-y-3 pt-2">
             <div className="grid grid-cols-2 gap-3">
-                <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-S000001" /></div>
+                <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-S000001" readOnly={!editRow} className={!editRow ? 'bg-muted cursor-not-allowed' : ''} /></div>
                 <div><Label>Year</Label>
                     <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.year} onChange={f("year")}>
                         {academicYears.map(y => (
@@ -189,7 +209,7 @@ export default function SummerCampTab() {
                         ))}
                     </select>
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                        <DialogTrigger asChild><Button size="sm" onClick={() => { setForm({ ...emptyForm(), year: yearId }); setIsAddOpen(true); }}><Plus className="h-4 w-4 mr-2" />Add Student</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Student</Button></DialogTrigger>
                         <DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Add Summer Camp Student</DialogTitle></DialogHeader><FormFields /><DialogFooter className="pt-2"><Button className="w-full" onClick={handleSave}>Save</Button></DialogFooter></DialogContent>
                     </Dialog>
                 </div>

@@ -105,7 +105,25 @@ export default function AdmissionsTab() {
     const totalBalance = filtered.reduce((s, r) => s + (r.fee_balance || 0), 0);
     const activeCount = filtered.filter(r => r.status === "Active").length;
 
-    const openAdd = () => { setForm({ ...emptyForm(), year: yearId }); setIsAddOpen(true); };
+    const generateNextStudentId = async () => {
+        try {
+            const res = await db.execute("SELECT student_id FROM admissions WHERE student_id LIKE 'TFS-BN-A%' ORDER BY student_id DESC LIMIT 1");
+            if (res.rows.length > 0) {
+                const lastId = String((res.rows[0] as any).student_id);
+                const numPart = parseInt(lastId.replace('TFS-BN-A', '')) || 0;
+                return `TFS-BN-A${String(numPart + 1).padStart(6, '0')}`;
+            }
+            return 'TFS-BN-A000001';
+        } catch {
+            return 'TFS-BN-A000001';
+        }
+    };
+
+    const openAdd = async () => {
+        const nextId = await generateNextStudentId();
+        setForm({ ...emptyForm(), student_id: nextId, year: yearId });
+        setIsAddOpen(true);
+    };
     const openEdit = (r: AdmissionRow) => {
         setEditRow(r);
         setForm({
@@ -158,7 +176,7 @@ export default function AdmissionsTab() {
     const FormFields = () => (
         <div className="space-y-3 pt-2 max-h-[65vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-3">
-                <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-A000001" /></div>
+                <div><Label>Student ID</Label><Input value={form.student_id} onChange={f("student_id")} placeholder="TFS-BN-A000001" readOnly={!editRow} className={!editRow ? 'bg-muted cursor-not-allowed' : ''} /></div>
                 <div><Label>Year</Label>
                     <select className="w-full border rounded-md px-3 py-2 text-sm mt-1" value={form.year} onChange={f("year")}>
                         {academicYears.map(y => (
