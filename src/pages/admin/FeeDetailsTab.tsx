@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { db } from "@/db/client";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Search, Save, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
