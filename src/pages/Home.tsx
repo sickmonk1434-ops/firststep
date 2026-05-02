@@ -65,7 +65,7 @@ const Home = () => {
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-center p-4">
                                     <div className="max-w-3xl">
                                         <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 drop-shadow-lg">
-                                            The First Step to a Bright Future
+                                            The First Steps Grow with Fun
                                         </h1>
                                         <p className="text-xl text-white mb-8 drop-shadow-md">
                                             A nurturing environment where children discover, learn, and grow.
