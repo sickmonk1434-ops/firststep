@@ -535,11 +535,11 @@ const Admin = () => {
                     <TabsContent value="reports"><ReportsTab /></TabsContent>
                     <TabsContent value="expenditure"><ExpenditureTab userRole={user.role} userEmail={user.email} /></TabsContent>
                     <TabsContent value="fee-details"><FeeDetailsTab /></TabsContent>
-                    <TabsContent value="admissions-data"><AdmissionsTab /></TabsContent>
+                    <TabsContent value="admissions-data"><AdmissionsTab schoolId={user.school_id} /></TabsContent>
                     <TabsContent value="salaries"><SalariesTab /></TabsContent>
                     <TabsContent value="employees"><EmployeesTab /></TabsContent>
                     <TabsContent value="investment"><InvestmentTab /></TabsContent>
-                    <TabsContent value="summercamp"><SummerCampTab /></TabsContent>
+                    <TabsContent value="summercamp"><SummerCampTab schoolId={user.school_id} /></TabsContent>
                     <TabsContent value="enquiries"><EnquiriesTab /></TabsContent>
                 </Tabs>
             </div>

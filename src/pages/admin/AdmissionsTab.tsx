@@ -49,7 +49,11 @@ const emptyForm = () => ({
     total_paid: "", fee_balance: "", followup: "", year: getCurrentAcademicYear()
 });
 
-export default function AdmissionsTab() {
+interface AdmissionsTabProps {
+    schoolId?: number | null;
+}
+
+export default function AdmissionsTab({ schoolId }: AdmissionsTabProps) {
     const [rows, setRows] = useState<AdmissionRow[]>([]);
     const [academicYears, setAcademicYears] = useState<any[]>([]);
     const [yearId, setYearId] = useState<string>("");
@@ -105,17 +109,34 @@ export default function AdmissionsTab() {
     const totalBalance = filtered.reduce((s, r) => s + (r.fee_balance || 0), 0);
     const activeCount = filtered.filter(r => r.status === "Active").length;
 
+    // Generate ID in format: TFS-AD{YY}B{NN}-{NNN}
     const generateNextStudentId = async () => {
         try {
-            const res = await db.execute("SELECT student_id FROM admissions WHERE student_id LIKE 'TFS-BN-A%' ORDER BY student_id DESC LIMIT 1");
+            // Get 2-digit year from selected academic year
+            const currentYear = academicYears.find(y => y.id.toString() === yearId);
+            const startYear = currentYear?.start_date?.slice(2, 4) || new Date().getFullYear().toString().slice(2);
+            
+            // Get branch number from school_id (B01 for school 1, B02 for school 2, etc.)
+            const branchNum = schoolId ? String(schoolId).padStart(2, '0') : '01';
+            
+            // Build prefix: TFS-AD25B01
+            const prefix = `TFS-AD${startYear}B${branchNum}`;
+            
+            // Find the highest existing sequential number for this prefix
+            const res = await db.execute({
+                sql: "SELECT student_id FROM admissions WHERE student_id LIKE ? ORDER BY student_id DESC LIMIT 1",
+                args: [`${prefix}-%`]
+            });
+            
             if (res.rows.length > 0) {
                 const lastId = String((res.rows[0] as any).student_id);
-                const numPart = parseInt(lastId.replace('TFS-BN-A', '')) || 0;
-                return `TFS-BN-A${String(numPart + 1).padStart(6, '0')}`;
+                const seqPart = lastId.split('-').pop() || '0';
+                const nextSeq = (parseInt(seqPart) || 0) + 1;
+                return `${prefix}-${String(nextSeq).padStart(3, '0')}`;
             }
-            return 'TFS-BN-A000001';
+            return `${prefix}-001`;
         } catch {
-            return 'TFS-BN-A000001';
+            return `TFS-AD${new Date().getFullYear().toString().slice(2)}B01-001`;
         }
     };
 

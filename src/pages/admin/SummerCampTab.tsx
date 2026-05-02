@@ -38,7 +38,11 @@ const emptyForm = () => ({
     fee_registered: "", paid: "", fee_balance: "", year: getCurrentAcademicYear()
 });
 
-export default function SummerCampTab() {
+interface SummerCampTabProps {
+    schoolId?: number | null;
+}
+
+export default function SummerCampTab({ schoolId }: SummerCampTabProps) {
     const [rows, setRows] = useState<SummerCampRow[]>([]);
     const [academicYears, setAcademicYears] = useState<any[]>([]);
     const [yearId, setYearId] = useState<string>("");
@@ -93,17 +97,34 @@ export default function SummerCampTab() {
     const totalPaid = filtered.reduce((s, r) => s + (r.paid || 0), 0);
     const totalBalance = filtered.reduce((s, r) => s + (r.fee_balance || 0), 0);
 
+    // Generate ID in format: TFS-SC{YY}B{NN}-{NNN}
     const generateNextStudentId = async () => {
         try {
-            const res = await db.execute("SELECT student_id FROM summer_camp WHERE student_id LIKE 'TFS-BN-S%' ORDER BY student_id DESC LIMIT 1");
+            // Get 2-digit year from selected academic year
+            const currentYear = academicYears.find(y => y.id.toString() === yearId);
+            const startYear = currentYear?.start_date?.slice(2, 4) || new Date().getFullYear().toString().slice(2);
+            
+            // Get branch number from school_id
+            const branchNum = schoolId ? String(schoolId).padStart(2, '0') : '01';
+            
+            // Build prefix: TFS-SC25B01
+            const prefix = `TFS-SC${startYear}B${branchNum}`;
+            
+            // Find the highest existing sequential number for this prefix
+            const res = await db.execute({
+                sql: "SELECT student_id FROM summer_camp WHERE student_id LIKE ? ORDER BY student_id DESC LIMIT 1",
+                args: [`${prefix}-%`]
+            });
+            
             if (res.rows.length > 0) {
                 const lastId = String((res.rows[0] as any).student_id);
-                const numPart = parseInt(lastId.replace('TFS-BN-S', '')) || 0;
-                return `TFS-BN-S${String(numPart + 1).padStart(6, '0')}`;
+                const seqPart = lastId.split('-').pop() || '0';
+                const nextSeq = (parseInt(seqPart) || 0) + 1;
+                return `${prefix}-${String(nextSeq).padStart(3, '0')}`;
             }
-            return 'TFS-BN-S000001';
+            return `${prefix}-001`;
         } catch {
-            return 'TFS-BN-S000001';
+            return `TFS-SC${new Date().getFullYear().toString().slice(2)}B01-001`;
         }
     };
 
